@@ -1,8 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import os from 'node:os';
+import path from 'node:path';
 
 export default defineConfig({
+  // El proyecto vive dentro de Dropbox, que bloquea el `rename` de node_modules/.vite
+  // durante la optimización de dependencias (errores EBUSY / respuestas 504). Movemos
+  // la caché de Vite fuera de la carpeta sincronizada para evitarlo.
+  cacheDir: path.join(os.tmpdir(), 'muninn-vite-cache'),
   plugins: [
     react(),
     VitePWA({
