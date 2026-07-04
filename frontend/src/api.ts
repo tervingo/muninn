@@ -4,6 +4,7 @@ import type {
   Note,
   NoteContent,
   NoteSummary,
+  PasskeyDevice,
 } from './types';
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -51,6 +52,9 @@ export const api = {
       body: JSON.stringify(body),
     }),
   logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
+  listDevices: () => request<PasskeyDevice[]>('/api/auth/credentials'),
+  deleteDevice: (id: string) =>
+    request<void>(`/api/auth/credentials/${id}`, { method: 'DELETE' }),
 
   // Notas
   listNotes: (archivadas = false) =>

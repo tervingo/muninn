@@ -36,6 +36,12 @@ export interface AuthStatus {
   hasCredential: boolean;
 }
 
+export interface PasskeyDevice {
+  id: string;
+  transports: string | null;
+  creado_en: string;
+}
+
 export const EMPTY_DOC: NoteContent = {
   type: 'doc',
   content: [{ type: 'paragraph' }],

@@ -8,11 +8,15 @@ import {
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/types';
 import { config } from '../config.js';
 import { ah } from '../lib/asyncHandler.js';
+import { requireAuth } from './middleware.js';
 import {
-  getCredential,
+  getAllCredentials,
+  getCredentialByCredentialId,
+  countCredentials,
   hasCredential,
   saveCredential,
   updateCounter,
+  deleteCredentialById,
 } from './credentials.js';
 import {
   setSessionCookie,
@@ -26,6 +30,10 @@ import {
 const { rpID, rpName, origin } = config.webauthn;
 const router = Router();
 
+function splitTransports(t: string | null): AuthenticatorTransportFuture[] | undefined {
+  return t ? (t.split(',') as AuthenticatorTransportFuture[]) : undefined;
+}
+
 // Estado de sesión + si ya existe passkey (para decidir registro vs login en el cliente)
 router.get(
   '/status',
@@ -37,24 +45,33 @@ router.get(
   }),
 );
 
-// --- Registro (bootstrap: sólo se permite si NO existe ya una credencial) ---
+// --- Registro ---
+// La PRIMERA passkey hace "bootstrap" (registro abierto). Registrar passkeys
+// ADICIONALES (otros dispositivos) requiere tener ya una sesión activa.
 
 router.post(
   '/register/options',
-  ah(async (_req, res) => {
-    if (await hasCredential()) {
+  ah(async (req, res) => {
+    const yaHayCredencial = await hasCredential();
+    if (yaHayCredencial && !isAuthenticated(req)) {
       res
         .status(403)
-        .json({ error: 'Ya existe una passkey registrada. El registro está cerrado.' });
+        .json({ error: 'El registro está cerrado. Inicia sesión para añadir un dispositivo.' });
       return;
     }
 
+    const existentes = await getAllCredentials();
     const options = await generateRegistrationOptions({
       rpName,
       rpID,
       userName: 'owner',
       userID: new TextEncoder().encode('muninn-owner'),
       attestationType: 'none',
+      // Evita registrar dos veces el mismo autenticador.
+      excludeCredentials: existentes.map((c) => ({
+        id: c.credential_id,
+        transports: splitTransports(c.transports),
+      })),
       authenticatorSelection: {
         residentKey: 'preferred',
         userVerification: 'preferred',
@@ -69,8 +86,9 @@ router.post(
 router.post(
   '/register/verify',
   ah(async (req, res) => {
-    if (await hasCredential()) {
-      res.status(403).json({ error: 'Ya existe una passkey registrada.' });
+    const yaHayCredencial = await hasCredential();
+    if (yaHayCredencial && !isAuthenticated(req)) {
+      res.status(403).json({ error: 'El registro está cerrado.' });
       return;
     }
 
@@ -102,6 +120,7 @@ router.post(
       });
 
       clearChallengeCookie(res);
+      // Si era el bootstrap (no había sesión), autentica ya. Si añadía dispositivo, mantiene sesión.
       setSessionCookie(res);
       res.json({ verified: true });
     } catch (err) {
@@ -116,8 +135,8 @@ router.post(
 router.post(
   '/login/options',
   ah(async (_req, res) => {
-    const cred = await getCredential();
-    if (!cred) {
+    const credenciales = await getAllCredentials();
+    if (credenciales.length === 0) {
       res.status(400).json({ error: 'No hay ninguna passkey registrada todavía.' });
       return;
     }
@@ -125,14 +144,10 @@ router.post(
     const options = await generateAuthenticationOptions({
       rpID,
       userVerification: 'preferred',
-      allowCredentials: [
-        {
-          id: cred.credential_id,
-          transports: cred.transports
-            ? (cred.transports.split(',') as AuthenticatorTransportFuture[])
-            : undefined,
-        },
-      ],
+      allowCredentials: credenciales.map((c) => ({
+        id: c.credential_id,
+        transports: splitTransports(c.transports),
+      })),
     });
 
     setChallengeCookie(res, options.challenge);
@@ -143,9 +158,15 @@ router.post(
 router.post(
   '/login/verify',
   ah(async (req, res) => {
-    const cred = await getCredential();
+    const credentialId: string | undefined = req.body?.id;
+    if (!credentialId) {
+      res.status(400).json({ error: 'Respuesta de autenticación inválida.' });
+      return;
+    }
+
+    const cred = await getCredentialByCredentialId(credentialId);
     if (!cred) {
-      res.status(400).json({ error: 'No hay ninguna passkey registrada.' });
+      res.status(401).json({ error: 'Credencial no reconocida.' });
       return;
     }
 
@@ -165,9 +186,7 @@ router.post(
           id: cred.credential_id,
           publicKey: cred.public_key,
           counter: Number(cred.counter),
-          transports: cred.transports
-            ? (cred.transports.split(',') as AuthenticatorTransportFuture[])
-            : undefined,
+          transports: splitTransports(cred.transports),
         },
       });
 
@@ -191,5 +210,42 @@ router.post('/logout', (_req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });
+
+// --- Gestión de dispositivos (passkeys), requiere sesión ---
+
+router.get(
+  '/credentials',
+  requireAuth,
+  ah(async (_req, res) => {
+    const creds = await getAllCredentials();
+    res.json(
+      creds.map((c) => ({
+        id: c.id,
+        transports: c.transports,
+        creado_en: c.creado_en,
+      })),
+    );
+  }),
+);
+
+router.delete(
+  '/credentials/:id',
+  requireAuth,
+  ah(async (req, res) => {
+    // No permitir borrar la última: dejaría el registro abierto al público de nuevo.
+    if ((await countCredentials()) <= 1) {
+      res
+        .status(400)
+        .json({ error: 'No puedes eliminar la única passkey. Registra otra antes de borrar ésta.' });
+      return;
+    }
+    const borrada = await deleteCredentialById(req.params.id);
+    if (!borrada) {
+      res.status(404).json({ error: 'Passkey no encontrada.' });
+      return;
+    }
+    res.status(204).end();
+  }),
+);
 
 export default router;

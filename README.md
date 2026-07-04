@@ -90,4 +90,15 @@ Ver plantillas en [`backend/.env.example`](backend/.env.example) y
 
 No hay registro público. La **primera** vez que abras la app, no habrá ninguna passkey:
 verás el botón **«Registrar passkey»**. Al registrarla tomas posesión de la app y el
-registro queda cerrado; a partir de ahí sólo aparece **«Entrar con passkey»**.
+registro público queda cerrado; a partir de ahí sólo aparece **«Entrar con passkey»**.
+
+**Multi-dispositivo:** las passkeys están ligadas al dominio y no se sincronizan entre
+Windows y Apple. Para entrar desde varios dispositivos, una vez dentro abre
+**«Dispositivos»** y usa **«Añadir passkey en este dispositivo»** en cada uno (Windows
+Hello, Face ID en iPhone, Touch ID en iPad). Añadir passkeys requiere sesión activa; no
+se puede borrar la última para no reabrir el registro al público.
+
+**Dev vs producción:** las credenciales viven en la BD. Como la passkey de `localhost`
+no vale en el dominio de producción (y viceversa), conviene dar a producción **su propia
+base de datos** (una *branch* de Neon, gratis) para que arranque vacía y puedas registrar
+la primera passkey de producción. Así dev y producción no comparten credenciales ni datos.

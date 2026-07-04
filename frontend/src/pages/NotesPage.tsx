@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { EMPTY_DOC, type Backlink, type Note, type NoteContent, type NoteSummary } from '../types';
 import { Editor } from '../editor/Editor';
+import { DevicesDialog } from '../components/DevicesDialog';
 
 interface Props {
   onLogout: () => void;
@@ -18,6 +19,7 @@ export function NotesPage({ onLogout }: Props) {
   const [backlinks, setBacklinks] = useState<Backlink[]>([]);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [devicesOpen, setDevicesOpen] = useState(false);
 
   // Cambios pendientes de guardar (contenido lo mantiene el editor por callback).
   const pendingContent = useRef<NoteContent | null>(null);
@@ -158,8 +160,11 @@ export function NotesPage({ onLogout }: Props) {
         <span className="save-indicator">
           {saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado ✓' : ''}
         </span>
+        <button className="icon-btn" onClick={() => setDevicesOpen(true)}>Dispositivos</button>
         <button className="icon-btn" onClick={logout}>Salir</button>
       </header>
+
+      {devicesOpen && <DevicesDialog onClose={() => setDevicesOpen(false)} />}
 
       <div className="body">
         <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
