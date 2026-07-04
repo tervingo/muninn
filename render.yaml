@@ -6,7 +6,9 @@ services:
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm install && npm run build
+    # --include=dev fuerza instalar devDependencies (@types, typescript) durante el
+    # build aunque NODE_ENV=production; el runtime solo usa dist/ + dependencies.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start
     healthCheckPath: /health
     envVars:
