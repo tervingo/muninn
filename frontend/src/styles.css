@@ -116,8 +116,8 @@ button.link:hover {
   color: var(--accent);
 }
 .brand-logo {
-  height: 28px;
-  width: 28px;
+  height: 40px;
+  width: 40px;
   display: block;
   margin-left: -0.25rem;
 }
