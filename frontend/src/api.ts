@@ -7,7 +7,10 @@ import type {
   PasskeyDevice,
 } from './types';
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+// En producción usamos rutas relativas (mismo origen) para pasar por el proxy /api de
+// Netlify → cookies first-party. En dev, el backend está en localhost:3000.
+// VITE_API_URL (si se define) tiene prioridad sobre ambos.
+const BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3000' : '');
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
