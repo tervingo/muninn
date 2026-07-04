@@ -157,6 +157,7 @@ export function NotesPage({ onLogout }: Props) {
           ☰
         </button>
         <span className="brand">Muninn</span>
+        <img className="brand-logo" src="/favicon-48.png" alt="" aria-hidden="true" />
         <span className="save-indicator">
           {saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado ✓' : ''}
         </span>

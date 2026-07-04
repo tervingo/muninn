@@ -115,6 +115,12 @@ button.link:hover {
   font-weight: 700;
   color: var(--accent);
 }
+.brand-logo {
+  height: 28px;
+  width: 28px;
+  display: block;
+  margin-left: -0.25rem;
+}
 .save-indicator {
   margin-left: auto;
   font-size: 0.85rem;
