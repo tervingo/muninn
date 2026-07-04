@@ -55,6 +55,8 @@ export const api = {
       body: JSON.stringify(body),
     }),
   logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
+  openEnrollment: () =>
+    request<{ abierta_hasta: string }>('/api/auth/enroll/open', { method: 'POST' }),
   listDevices: () => request<PasskeyDevice[]>('/api/auth/credentials'),
   deleteDevice: (id: string) =>
     request<void>(`/api/auth/credentials/${id}`, { method: 'DELETE' }),

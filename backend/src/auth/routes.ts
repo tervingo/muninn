@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -18,6 +18,7 @@ import {
   updateCounter,
   deleteCredentialById,
 } from './credentials.js';
+import { openEnrollment, closeEnrollment, isEnrollmentOpen } from './enrollment.js';
 import {
   setSessionCookie,
   clearSessionCookie,
@@ -41,22 +42,32 @@ router.get(
     res.json({
       authenticated: isAuthenticated(req),
       hasCredential: await hasCredential(),
+      enrollOpen: await isEnrollmentOpen(),
     });
   }),
 );
 
+// ¿Se permite registrar una passkey ahora?
+//  - No hay ninguna credencial todavía (bootstrap del propietario), o
+//  - la petición viene de una sesión activa (añadir passkey desde un dispositivo ya dentro), o
+//  - hay una ventana de alta abierta (dispositivo nuevo autorizado desde otro dispositivo).
+async function registroPermitido(req: Request): Promise<boolean> {
+  if (!(await hasCredential())) return true;
+  if (isAuthenticated(req)) return true;
+  return isEnrollmentOpen();
+}
+
 // --- Registro ---
-// La PRIMERA passkey hace "bootstrap" (registro abierto). Registrar passkeys
-// ADICIONALES (otros dispositivos) requiere tener ya una sesión activa.
+// La PRIMERA passkey hace "bootstrap". Passkeys adicionales: con sesión activa o con
+// una ventana de alta abierta (para dispositivos nuevos de otro ecosistema).
 
 router.post(
   '/register/options',
   ah(async (req, res) => {
-    const yaHayCredencial = await hasCredential();
-    if (yaHayCredencial && !isAuthenticated(req)) {
+    if (!(await registroPermitido(req))) {
       res
         .status(403)
-        .json({ error: 'El registro está cerrado. Inicia sesión para añadir un dispositivo.' });
+        .json({ error: 'El registro está cerrado. Abre una ventana de alta desde un dispositivo con sesión.' });
       return;
     }
 
@@ -86,8 +97,7 @@ router.post(
 router.post(
   '/register/verify',
   ah(async (req, res) => {
-    const yaHayCredencial = await hasCredential();
-    if (yaHayCredencial && !isAuthenticated(req)) {
+    if (!(await registroPermitido(req))) {
       res.status(403).json({ error: 'El registro está cerrado.' });
       return;
     }
@@ -120,7 +130,9 @@ router.post(
       });
 
       clearChallengeCookie(res);
-      // Si era el bootstrap (no había sesión), autentica ya. Si añadía dispositivo, mantiene sesión.
+      // Consume la ventana de alta si estaba abierta (limita la exposición a un registro).
+      await closeEnrollment();
+      // Si era el bootstrap o un alta (no había sesión), autentica ya el dispositivo.
       setSessionCookie(res);
       res.json({ verified: true });
     } catch (err) {
@@ -210,6 +222,19 @@ router.post('/logout', (_req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });
+
+// --- Alta de dispositivos nuevos ---
+
+// Abre una ventana de alta (10 min) para que un dispositivo nuevo, sin sesión, pueda
+// registrar su passkey. Requiere sesión activa (solo el propietario la abre).
+router.post(
+  '/enroll/open',
+  requireAuth,
+  ah(async (_req, res) => {
+    const abierta_hasta = await openEnrollment(10);
+    res.json({ abierta_hasta });
+  }),
+);
 
 // --- Gestión de dispositivos (passkeys), requiere sesión ---
 

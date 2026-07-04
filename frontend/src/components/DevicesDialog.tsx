@@ -11,6 +11,7 @@ export function DevicesDialog({ onClose }: Props) {
   const [devices, setDevices] = useState<PasskeyDevice[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [enrollMsg, setEnrollMsg] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -45,6 +46,21 @@ export function DevicesDialog({ onClose }: Props) {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo eliminar.');
+    }
+  };
+
+  const openEnroll = async () => {
+    setError(null);
+    setEnrollMsg(null);
+    try {
+      const { abierta_hasta } = await api.openEnrollment();
+      const hasta = new Date(abierta_hasta).toLocaleTimeString();
+      setEnrollMsg(
+        `Ventana de alta abierta hasta las ${hasta}. En el dispositivo nuevo (iPhone/iPad), ` +
+          `abre la app y pulsa «Registrar este dispositivo». Si ya la tenías abierta, refréscala.`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo abrir la ventana de alta.');
     }
   };
 
@@ -84,9 +100,19 @@ export function DevicesDialog({ onClose }: Props) {
         </ul>
 
         {error && <p className="error">{error}</p>}
+        {enrollMsg && <p className="hint enroll-msg">{enrollMsg}</p>}
 
         <button className="primary" disabled={busy} onClick={add}>
           {busy ? 'Registrando…' : '+ Añadir passkey en este dispositivo'}
+        </button>
+
+        <hr className="modal-sep" />
+        <p className="hint">
+          ¿Añadir un dispositivo de otro tipo (p. ej. iPhone/iPad desde Windows)? Abre una
+          ventana de alta y regístralo desde ese dispositivo:
+        </p>
+        <button className="secondary" onClick={openEnroll}>
+          Permitir añadir un dispositivo nuevo (10 min)
         </button>
       </div>
     </div>

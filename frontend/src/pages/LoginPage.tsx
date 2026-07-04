@@ -35,10 +35,26 @@ export function LoginPage({ status, onAuthenticated }: Props) {
             {busy ? 'Autenticando…' : 'Entrar con passkey'}
           </button>
           <p className="hint">Usa Face ID, Touch ID o Windows Hello.</p>
+
+          {status.enrollOpen && (
+            <>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => run(() => registerPasskey())}
+              >
+                {busy ? 'Registrando…' : 'Registrar este dispositivo'}
+              </button>
+              <p className="hint">
+                Hay una ventana de alta abierta. Registra la passkey de este dispositivo
+                (Face ID / Touch ID).
+              </p>
+            </>
+          )}
         </>
       ) : (
         <>
-          <button disabled={busy} onClick={() => run(registerPasskey)}>
+          <button disabled={busy} onClick={() => run(() => registerPasskey())}>
             {busy ? 'Registrando…' : 'Registrar passkey'}
           </button>
           <p className="hint">

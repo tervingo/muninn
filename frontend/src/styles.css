@@ -396,6 +396,21 @@ button.link:hover {
   color: var(--bg);
   border: none;
 }
+.modal-sep {
+  border: none;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  margin: 0.25rem 0;
+}
+.enroll-msg {
+  color: var(--accent-dim);
+  max-width: none;
+}
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
 .device-list {
   list-style: none;
   margin: 0;

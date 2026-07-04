@@ -34,6 +34,8 @@ export interface Backlink {
 export interface AuthStatus {
   authenticated: boolean;
   hasCredential: boolean;
+  /** Hay una ventana de alta abierta: un dispositivo nuevo puede registrar su passkey. */
+  enrollOpen: boolean;
 }
 
 export interface PasskeyDevice {

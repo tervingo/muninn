@@ -38,6 +38,15 @@ CREATE TABLE IF NOT EXISTS adjuntos (
   creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Ventana de alta de dispositivos: permite que un dispositivo nuevo (sin sesión)
+-- registre su passkey mientras el propietario la mantiene abierta desde otro dispositivo.
+-- Fila única (id=1) con la marca temporal hasta la que el alta está permitida.
+CREATE TABLE IF NOT EXISTS enrollment (
+  id INT PRIMARY KEY DEFAULT 1,
+  abierta_hasta TIMESTAMPTZ,
+  CONSTRAINT enrollment_singleton CHECK (id = 1)
+);
+
 -- Credenciales passkey (WebAuthn)
 CREATE TABLE IF NOT EXISTS credenciales_passkey (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
