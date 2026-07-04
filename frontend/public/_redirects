@@ -1,1 +1,6 @@
+# Proxy de la API al backend de Render (cookies first-party → funciona en iOS).
+# DEBE ir antes del catch-all SPA. Si cambia la URL de Render, actualízala aquí.
+/api/*  https://muninn-backend.onrender.com/api/:splat  200
+
+# Fallback SPA (react-router): todo lo demás sirve index.html.
 /*  /index.html  200
