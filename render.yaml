@@ -1,0 +1,29 @@
+# Despliegue del backend de Muninn en Render (plan gratuito).
+# Importar este blueprint desde el dashboard de Render (New > Blueprint).
+services:
+  - type: web
+    name: muninn-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      # Definir en el dashboard (marcadas como sync:false para no versionarlas):
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: WEBAUTHN_RP_ID
+        sync: false
+      - key: WEBAUTHN_RP_NAME
+        value: Muninn
+      - key: WEBAUTHN_ORIGIN
+        sync: false
