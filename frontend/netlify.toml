@@ -11,13 +11,12 @@
 # (mismo origen que el frontend), lo que EVITA el bloqueo de cookies de terceros de
 # Safari iOS. Con este proxy, deja VITE_API_URL vacío (cadena vacía) en Netlify y pon
 # WEBAUTHN_RP_ID / WEBAUTHN_ORIGIN al dominio de Netlify.
-# Descomenta y sustituye la URL de tu servicio de Render:
-#
-# [[redirects]]
-#   from = "/api/*"
-#   to = "https://muninn-backend.onrender.com/api/:splat"
-#   status = 200
-#   force = true
+# Si tu servicio de Render tiene otra URL, cámbiala aquí.
+[[redirects]]
+  from = "/api/*"
+  to = "https://muninn-backend.onrender.com/api/:splat"
+  status = 200
+  force = true
 
 # Fallback SPA (react-router). El archivo public/_redirects hace lo mismo;
 # se deja aquí por si se despliega sin él. Debe ir DESPUÉS del proxy /api.
