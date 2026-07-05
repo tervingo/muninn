@@ -56,4 +56,9 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  // Un único ejemplar de Yjs en el bundle: si y-prosemirror y y-websocket usan copias
+  // distintas, las actualizaciones remotas no llegan a la vista del editor.
+  resolve: {
+    dedupe: ['yjs'],
+  },
 });

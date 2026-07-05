@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@simplewebauthn/browser": "^11.0.0",
+    "@tiptap/extension-collaboration": "^2.27.2",
     "@tiptap/extension-placeholder": "^2.11.2",
     "@tiptap/pm": "^2.11.2",
     "@tiptap/react": "^2.11.2",
@@ -19,7 +20,9 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.1",
-    "tippy.js": "^6.3.7"
+    "tippy.js": "^6.3.7",
+    "y-websocket": "^1.5.4",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",
