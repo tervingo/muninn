@@ -1,9 +1,11 @@
+import http from 'node:http';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { config } from './config.js';
 import authRoutes from './auth/routes.js';
 import notesRoutes from './routes/notes.js';
+import { setupYjsWebSocket } from './yjs/server.js';
 
 const app = express();
 
@@ -29,7 +31,11 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-app.listen(config.port, () => {
+const server = http.createServer(app);
+setupYjsWebSocket(server);
+
+server.listen(config.port, () => {
   console.log(`Muninn backend escuchando en http://localhost:${config.port}`);
   console.log(`CORS permitido para: ${config.frontendUrl}`);
+  console.log(`WebSocket Yjs en ws://localhost:${config.port}/yjs/<noteId>`);
 });
