@@ -6,8 +6,9 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { useEffect, useRef, useState } from 'react';
 import { WikiLink } from './WikiLinkNode';
+import { MuninnLink } from './link';
 import { WS_BASE } from '../config';
-import type { NoteContent } from '../types';
+import type { NoteContent, WsStatus } from '../types';
 
 interface Props {
   /** Documento inicial (proyección JSON). Se usa para sembrar la sala Yjs si está vacía. */
@@ -18,6 +19,8 @@ interface Props {
   titles: string[];
   onChange: (doc: NoteContent) => void;
   onNavigateWikilink: (target: string) => void;
+  /** Notifica el estado de la conexión de sincronización. */
+  onStatus?: (status: WsStatus) => void;
 }
 
 interface Conn {
@@ -39,11 +42,16 @@ function docTieneContenido(doc: NoteContent | undefined): boolean {
 export function Editor(props: Props) {
   const [conn, setConn] = useState<Conn | null>(null);
 
+  const onStatus = props.onStatus;
   useEffect(() => {
+    onStatus?.('connecting');
     const ydoc = new Y.Doc();
     const provider = new WebsocketProvider(`${WS_BASE}/yjs`, props.noteId, ydoc, { connect: true });
+    const handleStatus = (e: { status: WsStatus }) => onStatus?.(e.status);
+    provider.on('status', handleStatus);
     setConn({ ydoc, provider });
     return () => {
+      provider.off('status', handleStatus);
       provider.destroy();
       ydoc.destroy();
       setConn(null);
@@ -72,6 +80,7 @@ function CollabEditor({
       StarterKit.configure({ history: false }),
       Placeholder.configure({ placeholder: 'Escribe algo… usa [[ para enlazar notas' }),
       Collaboration.configure({ document: conn.ydoc }),
+      MuninnLink,
       WikiLink.configure({ getTitles: () => titlesRef.current }),
     ],
     onUpdate: ({ editor }) => onChange(editor.getJSON() as NoteContent),

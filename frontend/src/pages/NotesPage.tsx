@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
-import { EMPTY_DOC, type Backlink, type Note, type NoteContent, type NoteSummary } from '../types';
+import { EMPTY_DOC, type Backlink, type Note, type NoteSummary, type WsStatus } from '../types';
 import { Editor } from '../editor/Editor';
 import { DevicesDialog } from '../components/DevicesDialog';
 
 interface Props {
   onLogout: () => void;
 }
-
-type SaveState = 'idle' | 'saving' | 'saved';
 
 export function NotesPage({ onLogout }: Props) {
   const [notes, setNotes] = useState<NoteSummary[]>([]);
@@ -17,14 +15,15 @@ export function NotesPage({ onLogout }: Props) {
   const [current, setCurrent] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
   const [backlinks, setBacklinks] = useState<Backlink[]>([]);
-  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [wsStatus, setWsStatus] = useState<WsStatus>('connecting');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
 
-  // Cambios pendientes de guardar (contenido lo mantiene el editor por callback).
-  const pendingContent = useRef<NoteContent | null>(null);
+  // El contenido lo persiste el servidor desde Yjs; aquí solo guardamos el título (REST).
   const pendingTitle = useRef<string | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tras editar, refrescamos backlinks/lista (el servidor recalcula enlaces al persistir).
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadNotes = useCallback(async () => {
     setNotes(await api.listNotes(showArchived));
@@ -38,62 +37,69 @@ export function NotesPage({ onLogout }: Props) {
     setBacklinks(await api.getBacklinks(id));
   }, []);
 
-  // --- Guardado (debounced) ---
+  // --- Guardado del título (REST, debounced). El contenido lo persiste el servidor. ---
 
-  const flushSave = useCallback(async () => {
-    if (!selectedId) return;
-    const patch: Partial<{ titulo: string; contenido: NoteContent }> = {};
-    if (pendingTitle.current !== null) patch.titulo = pendingTitle.current;
-    if (pendingContent.current !== null) patch.contenido = pendingContent.current;
-    pendingTitle.current = null;
-    pendingContent.current = null;
-    if (Object.keys(patch).length === 0) return;
-
-    setSaveState('saving');
-    try {
-      await api.updateNote(selectedId, patch);
-      setSaveState('saved');
-      await loadNotes();
-      await loadBacklinks(selectedId);
-    } catch {
-      setSaveState('idle');
+  const flushTitle = useCallback(async () => {
+    if (titleTimer.current) {
+      clearTimeout(titleTimer.current);
+      titleTimer.current = null;
     }
-  }, [selectedId, loadNotes, loadBacklinks]);
+    if (!selectedId || pendingTitle.current === null) return;
+    const titulo = pendingTitle.current;
+    pendingTitle.current = null;
+    try {
+      await api.updateNote(selectedId, { titulo });
+      await loadNotes();
+    } catch {
+      /* reintenta en el próximo cambio */
+    }
+  }, [selectedId, loadNotes]);
 
-  const scheduleSave = useCallback(() => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => void flushSave(), 800);
-  }, [flushSave]);
+  const scheduleTitleSave = useCallback(() => {
+    if (titleTimer.current) clearTimeout(titleTimer.current);
+    titleTimer.current = setTimeout(() => void flushTitle(), 800);
+  }, [flushTitle]);
 
-  // Flush al desmontar.
-  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
+  // Refresco de backlinks/lista tras editar (el servidor recalcula enlaces al persistir).
+  const scheduleRefresh = useCallback(() => {
+    if (!selectedId) return;
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => {
+      void loadBacklinks(selectedId);
+      void loadNotes();
+    }, 3500);
+  }, [selectedId, loadBacklinks, loadNotes]);
+
+  // Limpieza de timers al desmontar.
+  useEffect(
+    () => () => {
+      if (titleTimer.current) clearTimeout(titleTimer.current);
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    },
+    [],
+  );
 
   // --- Selección de nota ---
 
   const selectNote = useCallback(
     async (id: string) => {
-      // Guarda lo pendiente de la nota anterior antes de cambiar.
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      await flushSave();
-
+      await flushTitle(); // guarda el título pendiente de la nota anterior
       const note = await api.getNote(id);
       setSelectedId(id);
       setCurrent(note);
       setTitle(note.titulo);
-      setSaveState('idle');
       setSidebarOpen(false);
       await loadBacklinks(id);
     },
-    [flushSave, loadBacklinks],
+    [flushTitle, loadBacklinks],
   );
 
   const newNote = useCallback(async () => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    await flushSave();
+    await flushTitle();
     const note = await api.createNote('Nota sin título', EMPTY_DOC);
     await loadNotes();
     await selectNote(note.id);
-  }, [flushSave, loadNotes, selectNote]);
+  }, [flushTitle, loadNotes, selectNote]);
 
   // --- Navegación por wikilink ---
 
@@ -116,18 +122,16 @@ export function NotesPage({ onLogout }: Props) {
   const onTitleChange = (value: string) => {
     setTitle(value);
     pendingTitle.current = value;
-    scheduleSave();
+    scheduleTitleSave();
   };
 
-  const onContentChange = (doc: NoteContent) => {
-    pendingContent.current = doc;
-    scheduleSave();
+  const onContentChange = () => {
+    scheduleRefresh();
   };
 
   const toggleArchive = async () => {
     if (!current) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    await flushSave();
+    await flushTitle();
     await api.updateNote(current.id, { archivada: !current.archivada });
     setCurrent({ ...current, archivada: !current.archivada });
     await loadNotes();
@@ -143,7 +147,7 @@ export function NotesPage({ onLogout }: Props) {
   };
 
   const logout = async () => {
-    await flushSave();
+    await flushTitle();
     await api.logout();
     onLogout();
   };
@@ -159,7 +163,13 @@ export function NotesPage({ onLogout }: Props) {
         <span className="brand">Muninn</span>
         <img className="brand-logo" src="/favicon-48.png" alt="" aria-hidden="true" />
         <span className="save-indicator">
-          {saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado ✓' : ''}
+          {current
+            ? wsStatus === 'connected'
+              ? 'Sincronizado ✓'
+              : wsStatus === 'connecting'
+                ? 'Conectando…'
+                : 'Sin conexión'
+            : ''}
         </span>
         <button className="icon-btn" onClick={() => setDevicesOpen(true)}>Dispositivos</button>
         <button className="icon-btn" onClick={logout}>Salir</button>
@@ -221,6 +231,7 @@ export function NotesPage({ onLogout }: Props) {
                 titles={titles}
                 onChange={onContentChange}
                 onNavigateWikilink={navigateWikilink}
+                onStatus={setWsStatus}
               />
 
               <section className="backlinks">

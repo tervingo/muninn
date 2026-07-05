@@ -48,3 +48,6 @@ export const EMPTY_DOC: NoteContent = {
   type: 'doc',
   content: [{ type: 'paragraph' }],
 };
+
+/** Estado de la conexión WebSocket de sincronización. */
+export type WsStatus = 'connecting' | 'connected' | 'disconnected';

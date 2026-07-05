@@ -12,6 +12,7 @@
   "dependencies": {
     "@simplewebauthn/browser": "^11.0.0",
     "@tiptap/extension-collaboration": "^2.27.2",
+    "@tiptap/extension-link": "^2.27.2",
     "@tiptap/extension-placeholder": "^2.11.2",
     "@tiptap/pm": "^2.11.2",
     "@tiptap/react": "^2.11.2",

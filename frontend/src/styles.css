@@ -296,6 +296,11 @@ button.link:hover {
   pointer-events: none;
   height: 0;
 }
+.ProseMirror a {
+  color: var(--accent-dim);
+  text-decoration: underline;
+  cursor: pointer;
+}
 .wikilink {
   color: var(--accent);
   background: rgba(203, 166, 247, 0.12);
