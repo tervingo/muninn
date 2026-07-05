@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
-import { EMPTY_DOC, type Backlink, type Note, type NoteSummary, type WsStatus } from '../types';
+import {
+  EMPTY_DOC,
+  type Backlink,
+  type Note,
+  type NoteSummary,
+  type TagCount,
+  type WsStatus,
+} from '../types';
 import { Editor } from '../editor/Editor';
 import { DevicesDialog } from '../components/DevicesDialog';
+import { TagEditor } from '../components/TagEditor';
 
 interface Props {
   onLogout: () => void;
@@ -10,6 +18,8 @@ interface Props {
 
 export function NotesPage({ onLogout }: Props) {
   const [notes, setNotes] = useState<NoteSummary[]>([]);
+  const [allTags, setAllTags] = useState<TagCount[]>([]);
+  const [activeTags, setActiveTags] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [current, setCurrent] = useState<Note | null>(null);
@@ -26,12 +36,20 @@ export function NotesPage({ onLogout }: Props) {
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadNotes = useCallback(async () => {
-    setNotes(await api.listNotes(showArchived));
-  }, [showArchived]);
+    setNotes(await api.listNotes(showArchived, activeTags));
+  }, [showArchived, activeTags]);
+
+  const loadTags = useCallback(async () => {
+    setAllTags(await api.listTags());
+  }, []);
 
   useEffect(() => {
     void loadNotes();
   }, [loadNotes]);
+
+  useEffect(() => {
+    void loadTags();
+  }, [loadTags]);
 
   const loadBacklinks = useCallback(async (id: string) => {
     setBacklinks(await api.getBacklinks(id));
@@ -152,6 +170,24 @@ export function NotesPage({ onLogout }: Props) {
     onLogout();
   };
 
+  const onTagsChange = async (tags: string[]) => {
+    if (!current) return;
+    setCurrent({ ...current, tags });
+    try {
+      await api.updateNote(current.id, { tags });
+      await loadTags();
+      await loadNotes();
+    } catch {
+      /* reintenta en el próximo cambio */
+    }
+  };
+
+  const toggleTagFilter = (tag: string) => {
+    setActiveTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  };
+
   const titles = notes.map((n) => n.titulo);
 
   return (
@@ -190,6 +226,30 @@ export function NotesPage({ onLogout }: Props) {
               Ver archivadas
             </label>
           </div>
+
+          {allTags.length > 0 && (
+            <div className="tag-filter">
+              <div className="tag-filter-head">
+                <span>Etiquetas</span>
+                {activeTags.length > 0 && (
+                  <button className="link" onClick={() => setActiveTags([])}>
+                    limpiar
+                  </button>
+                )}
+              </div>
+              <div className="tag-filter-list">
+                {allTags.map((t) => (
+                  <button
+                    key={t.tag}
+                    className={`tag-chip filter${activeTags.includes(t.tag) ? ' active' : ''}`}
+                    onClick={() => toggleTagFilter(t.tag)}
+                  >
+                    #{t.tag} <span className="tag-count">{t.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <ul className="note-list">
             {notes.map((n) => (
               <li key={n.id}>
@@ -223,6 +283,8 @@ export function NotesPage({ onLogout }: Props) {
                   <button className="danger" onClick={remove}>Eliminar</button>
                 </div>
               </div>
+
+              <TagEditor tags={current.tags} onChange={onTagsChange} />
 
               <Editor
                 key={current.id}

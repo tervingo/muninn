@@ -12,9 +12,14 @@ CREATE TABLE IF NOT EXISTS notas (
   archivada BOOLEAN NOT NULL DEFAULT false
 );
 
+-- Etiquetas de la nota (metadatos, no forman parte del documento Yjs).
+ALTER TABLE notas ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+
 -- Búsqueda/orden por título (los wikilinks resuelven por título, case-insensitive)
 CREATE INDEX IF NOT EXISTS idx_notas_titulo_lower ON notas (lower(titulo));
 CREATE INDEX IF NOT EXISTS idx_notas_actualizado ON notas (actualizado_en DESC);
+-- Búsqueda por etiquetas (operadores de arrays @> / &&)
+CREATE INDEX IF NOT EXISTS idx_notas_tags ON notas USING GIN (tags);
 
 -- Enlaces entre notas (para backlinks y grafo)
 CREATE TABLE IF NOT EXISTS enlaces (

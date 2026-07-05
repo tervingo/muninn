@@ -5,6 +5,7 @@ import type {
   NoteContent,
   NoteSummary,
   PasskeyDevice,
+  TagCount,
 } from './types';
 
 // En producción usamos rutas relativas (mismo origen) para pasar por el proxy /api de
@@ -62,8 +63,12 @@ export const api = {
     request<void>(`/api/auth/credentials/${id}`, { method: 'DELETE' }),
 
   // Notas
-  listNotes: (archivadas = false) =>
-    request<NoteSummary[]>(`/api/notes?archivadas=${archivadas}`),
+  listNotes: (archivadas = false, tags: string[] = []) => {
+    const qs = new URLSearchParams({ archivadas: String(archivadas) });
+    if (tags.length) qs.set('tags', tags.join(','));
+    return request<NoteSummary[]>(`/api/notes?${qs.toString()}`);
+  },
+  listTags: () => request<TagCount[]>('/api/notes/tags'),
   getNote: (id: string) => request<Note>(`/api/notes/${id}`),
   getBacklinks: (id: string) => request<Backlink[]>(`/api/notes/${id}/backlinks`),
   createNote: (titulo: string, contenido?: NoteContent) =>
@@ -73,7 +78,7 @@ export const api = {
     }),
   updateNote: (
     id: string,
-    patch: Partial<{ titulo: string; contenido: NoteContent; archivada: boolean }>,
+    patch: Partial<{ titulo: string; contenido: NoteContent; archivada: boolean; tags: string[] }>,
   ) =>
     request<Note>(`/api/notes/${id}`, {
       method: 'PATCH',

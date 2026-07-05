@@ -4,10 +4,22 @@ import { query } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { ah } from '../lib/asyncHandler.js';
 import { syncEnlaces } from '../lib/wikilinks.js';
-import { EMPTY_DOC, type DocNode, type Note } from '../types.js';
+import { EMPTY_DOC, type DocNode, type Note, type TagCount } from '../types.js';
 
 const router = Router();
 router.use(requireAuth);
+
+/** Normaliza etiquetas: sin '#' inicial, trim, minúsculas, sin vacíos ni duplicados. */
+function normalizeTags(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  for (const t of input) {
+    if (typeof t !== 'string') continue;
+    const s = t.trim().replace(/^#+/, '').trim().toLowerCase();
+    if (s) seen.add(s);
+  }
+  return [...seen];
+}
 
 // El contenido es un documento ProseMirror arbitrario; validamos que sea un objeto con `type`.
 const docSchema: z.ZodType<DocNode> = z.lazy(() =>
@@ -32,6 +44,7 @@ const updateSchema = z
     titulo: z.string().trim().min(1).max(500).optional(),
     contenido: docSchema.optional(),
     archivada: z.boolean().optional(),
+    tags: z.array(z.string()).max(50).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'Nada que actualizar' });
 
@@ -45,16 +58,44 @@ async function resyncAllEnlaces(): Promise<void> {
   }
 }
 
-// GET /api/notes?archivadas=true|false  → listado (resumen)
+// GET /api/notes?archivadas=true|false&tags=a,b  → listado (resumen), filtrable por etiquetas (AND)
 router.get(
   '/',
   ah(async (req, res) => {
     const incluirArchivadas = req.query.archivadas === 'true';
+    const tags = normalizeTags(
+      typeof req.query.tags === 'string' ? req.query.tags.split(',') : [],
+    );
+
+    const conds: string[] = [];
+    const params: unknown[] = [];
+    if (!incluirArchivadas) conds.push('archivada = false');
+    if (tags.length > 0) {
+      params.push(tags);
+      conds.push(`tags @> $${params.length}::text[]`);
+    }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
     const { rows } = await query<Note>(
-      `SELECT id, titulo, actualizado_en, archivada
+      `SELECT id, titulo, actualizado_en, archivada, tags
        FROM notas
-       ${incluirArchivadas ? '' : 'WHERE archivada = false'}
+       ${where}
        ORDER BY actualizado_en DESC`,
+      params,
+    );
+    res.json(rows);
+  }),
+);
+
+// GET /api/notes/tags  → todas las etiquetas con su número de notas (para el filtro)
+router.get(
+  '/tags',
+  ah(async (_req, res) => {
+    const { rows } = await query<TagCount>(
+      `SELECT tag, count(*)::int AS count
+       FROM notas, unnest(tags) AS tag
+       GROUP BY tag
+       ORDER BY tag`,
     );
     res.json(rows);
   }),
@@ -137,13 +178,14 @@ router.patch(
     const titulo = parsed.data.titulo ?? previa.titulo;
     const contenido = parsed.data.contenido ?? previa.contenido;
     const archivada = parsed.data.archivada ?? previa.archivada;
+    const tags = parsed.data.tags !== undefined ? normalizeTags(parsed.data.tags) : previa.tags;
 
     const { rows } = await query<Note>(
       `UPDATE notas
-       SET titulo = $1, contenido = $2, archivada = $3, actualizado_en = now()
-       WHERE id = $4
+       SET titulo = $1, contenido = $2, archivada = $3, tags = $4, actualizado_en = now()
+       WHERE id = $5
        RETURNING *`,
-      [titulo, contenido, archivada, req.params.id],
+      [titulo, contenido, archivada, tags, req.params.id],
     );
     const nota = rows[0]!;
 

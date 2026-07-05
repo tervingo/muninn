@@ -21,6 +21,7 @@ export interface Note {
   creado_en: string;
   actualizado_en: string;
   archivada: boolean;
+  tags: string[];
 }
 
 export interface NoteSummary {
@@ -28,6 +29,13 @@ export interface NoteSummary {
   titulo: string;
   actualizado_en: string;
   archivada: boolean;
+  tags: string[];
+}
+
+/** Una etiqueta con el número de notas que la usan. */
+export interface TagCount {
+  tag: string;
+  count: number;
 }
 
 export interface Backlink {
