@@ -140,7 +140,7 @@ button.link:hover {
 
 /* --- Sidebar --- */
 .sidebar {
-  width: 280px;
+  width: 500px;
   background: var(--bg-alt);
   border-right: 1px solid var(--border);
   display: flex;
@@ -278,6 +278,11 @@ button.link:hover {
 .tag-count {
   opacity: 0.6;
   font-size: 0.7rem;
+}
+.bulk-del {
+  margin-top: 0.6rem;
+  width: 100%;
+  font-size: 0.85rem;
 }
 .tag-chip.filter.active .tag-count {
   opacity: 0.8;
@@ -516,6 +521,20 @@ button.secondary {
 .device-transport {
   font-weight: 600;
   text-transform: capitalize;
+}
+
+/* Importación */
+.import-pick {
+  display: inline-block;
+  text-align: center;
+  cursor: pointer;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+}
+.import-progress {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 /* --- Responsive: sidebar como drawer en móvil --- */

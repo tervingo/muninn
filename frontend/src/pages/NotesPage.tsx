@@ -11,6 +11,7 @@ import {
 import { Editor } from '../editor/Editor';
 import { DevicesDialog } from '../components/DevicesDialog';
 import { TagEditor } from '../components/TagEditor';
+import { ImportDialog } from '../components/ImportDialog';
 
 interface Props {
   onLogout: () => void;
@@ -28,6 +29,7 @@ export function NotesPage({ onLogout }: Props) {
   const [wsStatus, setWsStatus] = useState<WsStatus>('connecting');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   // El contenido lo persiste el servidor desde Yjs; aquí solo guardamos el título (REST).
   const pendingTitle = useRef<string | null>(null);
@@ -188,6 +190,25 @@ export function NotesPage({ onLogout }: Props) {
     );
   };
 
+  const bulkDeleteShown = async () => {
+    if (activeTags.length === 0 || notes.length === 0) return;
+    const filtro = activeTags.map((t) => `#${t}`).join(', ');
+    if (
+      !confirm(
+        `¿Eliminar definitivamente ${notes.length} nota(s) con ${filtro}? Esta acción no se puede deshacer.`,
+      )
+    )
+      return;
+    const ids = notes.map((n) => n.id);
+    await api.bulkDelete(ids);
+    if (selectedId && ids.includes(selectedId)) {
+      setSelectedId(null);
+      setCurrent(null);
+    }
+    await loadNotes();
+    await loadTags();
+  };
+
   const titles = notes.map((n) => n.titulo);
 
   return (
@@ -212,11 +233,21 @@ export function NotesPage({ onLogout }: Props) {
       </header>
 
       {devicesOpen && <DevicesDialog onClose={() => setDevicesOpen(false)} />}
+      {importOpen && (
+        <ImportDialog
+          onClose={() => setImportOpen(false)}
+          onImported={() => {
+            void loadNotes();
+            void loadTags();
+          }}
+        />
+      )}
 
       <div className="body">
         <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
           <div className="sidebar-actions">
             <button onClick={newNote}>+ Nueva nota</button>
+            <button onClick={() => setImportOpen(true)}>Importar de Obsidian</button>
             <label className="archived-toggle">
               <input
                 type="checkbox"
@@ -248,6 +279,11 @@ export function NotesPage({ onLogout }: Props) {
                   </button>
                 ))}
               </div>
+              {activeTags.length > 0 && notes.length > 0 && (
+                <button className="danger bulk-del" onClick={bulkDeleteShown}>
+                  Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
+                </button>
+              )}
             </div>
           )}
           <ul className="note-list">

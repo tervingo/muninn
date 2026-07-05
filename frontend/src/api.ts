@@ -69,6 +69,11 @@ export const api = {
     return request<NoteSummary[]>(`/api/notes?${qs.toString()}`);
   },
   listTags: () => request<TagCount[]>('/api/notes/tags'),
+  importNotes: (notas: Array<{ titulo: string; contenido: NoteContent; tags: string[] }>) =>
+    request<{ imported: number }>('/api/notes/import', {
+      method: 'POST',
+      body: JSON.stringify({ notas }),
+    }),
   getNote: (id: string) => request<Note>(`/api/notes/${id}`),
   getBacklinks: (id: string) => request<Backlink[]>(`/api/notes/${id}/backlinks`),
   createNote: (titulo: string, contenido?: NoteContent) =>
@@ -85,4 +90,9 @@ export const api = {
       body: JSON.stringify(patch),
     }),
   deleteNote: (id: string) => request<void>(`/api/notes/${id}`, { method: 'DELETE' }),
+  bulkDelete: (ids: string[]) =>
+    request<{ deleted: number }>('/api/notes/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
 };

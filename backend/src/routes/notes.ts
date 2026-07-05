@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { query } from '../db.js';
+import { pool, query } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { ah } from '../lib/asyncHandler.js';
 import { syncEnlaces } from '../lib/wikilinks.js';
@@ -37,6 +37,23 @@ const docSchema: z.ZodType<DocNode> = z.lazy(() =>
 const createSchema = z.object({
   titulo: z.string().trim().min(1, 'El título no puede estar vacío').max(500),
   contenido: docSchema.optional(),
+});
+
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(5000),
+});
+
+const importSchema = z.object({
+  notas: z
+    .array(
+      z.object({
+        titulo: z.string().trim().min(1).max(500),
+        contenido: docSchema.optional(),
+        tags: z.array(z.string()).max(50).optional(),
+      }),
+    )
+    .min(1)
+    .max(5000),
 });
 
 const updateSchema = z
@@ -153,6 +170,60 @@ router.post(
     await resyncAllEnlaces();
 
     res.status(201).json(nota);
+  }),
+);
+
+// POST /api/notes/bulk-delete  → borra varias notas por id (p. ej. resultados de un filtro).
+router.post(
+  '/bulk-delete',
+  ah(async (req, res) => {
+    const parsed = bulkDeleteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Datos inválidos' });
+      return;
+    }
+    const { rowCount } = await query('DELETE FROM notas WHERE id = ANY($1::uuid[])', [
+      parsed.data.ids,
+    ]);
+    res.json({ deleted: rowCount ?? 0 });
+  }),
+);
+
+// POST /api/notes/import  → alta masiva (p. ej. importación de Obsidian).
+// Inserta todas las notas en una transacción y recalcula los enlaces UNA sola vez.
+router.post(
+  '/import',
+  ah(async (req, res) => {
+    const parsed = importSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Datos inválidos' });
+      return;
+    }
+
+    const client = await pool.connect();
+    let imported = 0;
+    try {
+      await client.query('BEGIN');
+      for (const n of parsed.data.notas) {
+        await client.query('INSERT INTO notas (titulo, contenido, tags) VALUES ($1, $2, $3)', [
+          n.titulo,
+          n.contenido ?? EMPTY_DOC,
+          normalizeTags(n.tags ?? []),
+        ]);
+        imported++;
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw err;
+    }
+    client.release();
+
+    // Resolver backlinks entre todas las notas (incluidas las recién importadas) una vez.
+    await resyncAllEnlaces();
+
+    res.status(201).json({ imported });
   }),
 );
 
