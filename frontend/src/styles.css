@@ -334,6 +334,16 @@ button.link:hover {
 .editor {
   margin-top: 1rem;
 }
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.ProseMirror img {
+  max-width: 100%;
+  border-radius: 8px;
+}
 .ProseMirror {
   min-height: 40vh;
   outline: none;

@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { config } from './config.js';
 import authRoutes from './auth/routes.js';
 import notesRoutes from './routes/notes.js';
+import attachmentsRoutes from './routes/attachments.js';
 import { setupYjsWebSocket } from './yjs/server.js';
 
 const app = express();
@@ -24,6 +25,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
+app.use('/api/attachments', attachmentsRoutes);
 
 // Manejador de errores genérico
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

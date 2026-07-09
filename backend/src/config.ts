@@ -20,4 +20,10 @@ export const config = {
   sessionSecret: required('SESSION_SECRET'),
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   isProd: process.env.NODE_ENV === 'production',
+  r2: {
+    accessKeyId: required('R2_ACCESS_KEY_ID'),
+    secretAccessKey: required('R2_SECRET_ACCESS_KEY'),
+    bucket: required('R2_BUCKET_NAME'),
+    endpoint: process.env.R2_ENDPOINT ?? `https://${required('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
+  },
 };

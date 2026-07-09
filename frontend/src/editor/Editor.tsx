@@ -2,12 +2,14 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
+import Image from '@tiptap/extension-image';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { useEffect, useRef, useState } from 'react';
 import { WikiLink } from './WikiLinkNode';
 import { MuninnLink } from './link';
 import { WS_BASE } from '../config';
+import { isImageFile, uploadImage } from '../attachments';
 import type { NoteContent, WsStatus } from '../types';
 
 interface Props {
@@ -67,12 +69,15 @@ export function Editor(props: Props) {
 function CollabEditor({
   conn,
   content,
+  noteId,
   titles,
   onChange,
   onNavigateWikilink,
 }: Props & { conn: Conn }) {
   const titlesRef = useRef(titles);
   titlesRef.current = titles;
+  const [uploading, setUploading] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -82,7 +87,24 @@ function CollabEditor({
       Collaboration.configure({ document: conn.ydoc }),
       MuninnLink,
       WikiLink.configure({ getTitles: () => titlesRef.current }),
+      Image.configure({ inline: false }),
     ],
+    editorProps: {
+      handlePaste: (_view, event) => {
+        const files = Array.from(event.clipboardData?.files ?? []).filter(isImageFile);
+        if (files.length === 0) return false;
+        event.preventDefault();
+        files.forEach((file) => void insertUploadedImage(file));
+        return true;
+      },
+      handleDrop: (_view, event) => {
+        const files = Array.from(event.dataTransfer?.files ?? []).filter(isImageFile);
+        if (files.length === 0) return false;
+        event.preventDefault();
+        files.forEach((file) => void insertUploadedImage(file));
+        return true;
+      },
+    },
     onUpdate: ({ editor }) => onChange(editor.getJSON() as NoteContent),
   });
 
@@ -103,6 +125,22 @@ function CollabEditor({
     return () => conn.provider.off('sync', onSync);
   }, [editor, conn, content]);
 
+  // Sube la imagen y la inserta en la posición actual del cursor al terminar. No se usa
+  // una vista previa optimista (blob: local): si se sincronizara vía Yjs antes de la subida,
+  // esa URL no tendría sentido en otro dispositivo conectado.
+  const insertUploadedImage = async (file: File) => {
+    if (!editor) return;
+    setUploading((n) => n + 1);
+    try {
+      const src = await uploadImage(noteId, file);
+      editor.chain().focus().setImage({ src, alt: file.name }).run();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error subiendo la imagen.');
+    } finally {
+      setUploading((n) => n - 1);
+    }
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest('[data-wikilink]');
     if (el) {
@@ -113,8 +151,32 @@ function CollabEditor({
   };
 
   return (
-    <div className="editor" onClick={handleClick}>
-      <EditorContent editor={editor} />
+    <div className="editor">
+      <div className="editor-toolbar">
+        <button
+          type="button"
+          className="icon-btn"
+          title="Insertar imagen"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          🖼️
+        </button>
+        {uploading > 0 && <span className="muted">Subiendo imagen…</span>}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (file) void insertUploadedImage(file);
+          }}
+        />
+      </div>
+      <div onClick={handleClick}>
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }

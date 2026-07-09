@@ -33,15 +33,20 @@ CREATE TABLE IF NOT EXISTS enlaces (
 CREATE INDEX IF NOT EXISTS idx_enlaces_destino ON enlaces (nota_destino_id);
 CREATE INDEX IF NOT EXISTS idx_enlaces_origen ON enlaces (nota_origen_id);
 
--- Adjuntos multimedia (fase 3, definido ya para no romper el esquema más adelante)
+-- Adjuntos multimedia (fase 3). Bucket R2 privado: `url` guarda la CLAVE del objeto
+-- (no una URL pública); la lectura pasa siempre por GET /api/attachments/:id, que
+-- genera una URL firmada de corta duración.
 CREATE TABLE IF NOT EXISTS adjuntos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nota_id UUID NOT NULL REFERENCES notas(id) ON DELETE CASCADE,
   tipo TEXT NOT NULL,               -- 'imagen' | 'audio' | 'video'
-  url TEXT NOT NULL,
+  url TEXT NOT NULL,                -- clave del objeto en R2
   nombre_original TEXT,
   creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE adjuntos ADD COLUMN IF NOT EXISTS mime_type TEXT;
+ALTER TABLE adjuntos ADD COLUMN IF NOT EXISTS tamano_bytes BIGINT;
+CREATE INDEX IF NOT EXISTS idx_adjuntos_nota ON adjuntos (nota_id);
 
 -- Ventana de alta de dispositivos: permite que un dispositivo nuevo (sin sesión)
 -- registre su passkey mientras el propietario la mantiene abierta desde otro dispositivo.

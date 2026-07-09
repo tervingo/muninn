@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1083.0",
+    "@aws-sdk/s3-request-presigner": "^3.1083.0",
     "@simplewebauthn/server": "^11.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

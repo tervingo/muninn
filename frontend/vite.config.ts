@@ -55,6 +55,11 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    // Solo para rutas relativas usadas como src de <img> (p. ej. /api/attachments/:id);
+    // las llamadas REST siguen usando la URL absoluta de `api.ts` (VITE_API_URL/localhost:3000).
+    proxy: {
+      '/api': { target: 'http://localhost:3000', changeOrigin: true },
+    },
   },
   // Un único ejemplar de Yjs en el bundle: si y-prosemirror y y-websocket usan copias
   // distintas, las actualizaciones remotas no llegan a la vista del editor.

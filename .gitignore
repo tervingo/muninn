@@ -33,3 +33,6 @@ coverage/
 
 # Vite / PWA generated
 frontend/dev-dist/
+
+# Playwright MCP (snapshots/screenshots de verificación manual)
+.playwright-mcp/

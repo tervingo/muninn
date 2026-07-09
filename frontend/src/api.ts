@@ -70,7 +70,7 @@ export const api = {
   },
   listTags: () => request<TagCount[]>('/api/notes/tags'),
   importNotes: (notas: Array<{ titulo: string; contenido: NoteContent; tags: string[] }>) =>
-    request<{ imported: number }>('/api/notes/import', {
+    request<{ imported: number; ids: string[] }>('/api/notes/import', {
       method: 'POST',
       body: JSON.stringify({ notas }),
     }),
@@ -94,5 +94,12 @@ export const api = {
     request<{ deleted: number }>('/api/notes/bulk-delete', {
       method: 'POST',
       body: JSON.stringify({ ids }),
+    }),
+
+  // Adjuntos (imágenes)
+  createAttachment: (notaId: string, nombreOriginal: string, mimeType: string, tamano: number) =>
+    request<{ id: string; uploadUrl: string }>('/api/attachments', {
+      method: 'POST',
+      body: JSON.stringify({ notaId, nombreOriginal, mimeType, tamano }),
     }),
 };

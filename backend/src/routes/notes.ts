@@ -4,6 +4,7 @@ import { pool, query } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { ah } from '../lib/asyncHandler.js';
 import { syncEnlaces } from '../lib/wikilinks.js';
+import { deleteObjects } from '../lib/r2.js';
 import { EMPTY_DOC, type DocNode, type Note, type TagCount } from '../types.js';
 
 const router = Router();
@@ -64,6 +65,19 @@ const updateSchema = z
     tags: z.array(z.string()).max(50).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'Nada que actualizar' });
+
+/** Borra (best-effort) los objetos R2 de los adjuntos de las notas dadas. Debe llamarse
+ * ANTES de borrar las notas (el ON DELETE CASCADE se lleva las filas de `adjuntos`). */
+async function deleteAttachmentsFor(notaIds: string[]): Promise<void> {
+  if (notaIds.length === 0) return;
+  const { rows } = await query<{ url: string }>('SELECT url FROM adjuntos WHERE nota_id = ANY($1::uuid[])', [
+    notaIds,
+  ]);
+  if (rows.length === 0) return;
+  await deleteObjects(rows.map((r) => r.url)).catch((err) =>
+    console.error('Error borrando adjuntos de R2:', err),
+  );
+}
 
 /** Re-sincroniza los enlaces de TODAS las notas (para resolver backlinks tras crear/renombrar). */
 async function resyncAllEnlaces(): Promise<void> {
@@ -182,6 +196,7 @@ router.post(
       res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Datos inválidos' });
       return;
     }
+    await deleteAttachmentsFor(parsed.data.ids);
     const { rowCount } = await query('DELETE FROM notas WHERE id = ANY($1::uuid[])', [
       parsed.data.ids,
     ]);
@@ -201,16 +216,17 @@ router.post(
     }
 
     const client = await pool.connect();
-    let imported = 0;
+    // ids en el mismo orden que `parsed.data.notas`, para que el cliente pueda asociar
+    // imágenes/adjuntos a la nota correcta tras la creación masiva.
+    const ids: string[] = [];
     try {
       await client.query('BEGIN');
       for (const n of parsed.data.notas) {
-        await client.query('INSERT INTO notas (titulo, contenido, tags) VALUES ($1, $2, $3)', [
-          n.titulo,
-          n.contenido ?? EMPTY_DOC,
-          normalizeTags(n.tags ?? []),
-        ]);
-        imported++;
+        const { rows } = await client.query<{ id: string }>(
+          'INSERT INTO notas (titulo, contenido, tags) VALUES ($1, $2, $3) RETURNING id',
+          [n.titulo, n.contenido ?? EMPTY_DOC, normalizeTags(n.tags ?? [])],
+        );
+        ids.push(rows[0]!.id);
       }
       await client.query('COMMIT');
     } catch (err) {
@@ -223,7 +239,7 @@ router.post(
     // Resolver backlinks entre todas las notas (incluidas las recién importadas) una vez.
     await resyncAllEnlaces();
 
-    res.status(201).json({ imported });
+    res.status(201).json({ imported: ids.length, ids });
   }),
 );
 
@@ -277,6 +293,7 @@ router.patch(
 router.delete(
   '/:id',
   ah(async (req, res) => {
+    await deleteAttachmentsFor([req.params.id]);
     const { rowCount } = await query('DELETE FROM notas WHERE id = $1', [req.params.id]);
     if (rowCount === 0) {
       res.status(404).json({ error: 'Nota no encontrada' });
