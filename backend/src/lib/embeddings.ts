@@ -83,7 +83,8 @@ export async function generarEmbedding(
   return embedding;
 }
 
-function toVectorLiteral(embedding: number[]): string {
+/** Formatea un embedding como literal `vector` de Postgres (`[0.1,0.2,...]`). */
+export function toVectorLiteral(embedding: number[]): string {
   return `[${embedding.join(',')}]`;
 }
 

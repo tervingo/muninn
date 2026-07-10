@@ -32,12 +32,16 @@ export function NotesPage({ onLogout }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<RelatedNote[] | null>(null);
+  const [searching, setSearching] = useState(false);
 
   // El contenido lo persiste el servidor desde Yjs; aquí solo guardamos el título (REST).
   const pendingTitle = useRef<string | null>(null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tras editar, refrescamos backlinks/lista (el servidor recalcula enlaces al persistir).
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadNotes = useCallback(async () => {
     setNotes(await api.listNotes(showArchived, activeTags));
@@ -62,6 +66,37 @@ export function NotesPage({ onLogout }: Props) {
   const loadRelated = useCallback(async (id: string) => {
     setRelated(await api.getRelated(id));
   }, []);
+
+  // --- Búsqueda semántica (debounced). Sustituye la lista de notas mientras hay texto. ---
+
+  const runSearch = useCallback(async (q: string) => {
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    }
+    if (!q.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    setSearching(true);
+    try {
+      setSearchResults(await api.semanticSearch(q));
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const onSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!value.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    searchTimer.current = setTimeout(() => void runSearch(value), 500);
+  };
 
   // --- Guardado del título (REST, debounced). El contenido lo persiste el servidor. ---
 
@@ -103,6 +138,7 @@ export function NotesPage({ onLogout }: Props) {
     () => () => {
       if (titleTimer.current) clearTimeout(titleTimer.current);
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      if (searchTimer.current) clearTimeout(searchTimer.current);
     },
     [],
   );
@@ -267,48 +303,82 @@ export function NotesPage({ onLogout }: Props) {
             </label>
           </div>
 
-          {allTags.length > 0 && (
-            <div className="tag-filter">
-              <div className="tag-filter-head">
-                <span>Etiquetas</span>
-                {activeTags.length > 0 && (
-                  <button className="link" onClick={() => setActiveTags([])}>
-                    limpiar
-                  </button>
-                )}
-              </div>
-              <div className="tag-filter-list">
-                {allTags.map((t) => (
-                  <button
-                    key={t.tag}
-                    className={`tag-chip filter${activeTags.includes(t.tag) ? ' active' : ''}`}
-                    onClick={() => toggleTagFilter(t.tag)}
-                  >
-                    #{t.tag} <span className="tag-count">{t.count}</span>
-                  </button>
-                ))}
-              </div>
-              {activeTags.length > 0 && notes.length > 0 && (
-                <button className="danger bulk-del" onClick={bulkDeleteShown}>
-                  Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
-                </button>
+          <div className="search-box">
+            <input
+              type="search"
+              placeholder="Buscar por significado…"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void runSearch(searchQuery);
+              }}
+            />
+          </div>
+
+          {searchQuery.trim() ? (
+            <ul className="note-list">
+              {searching && <li className="empty">Buscando…</li>}
+              {!searching && searchResults?.length === 0 && (
+                <li className="empty">Sin resultados para «{searchQuery.trim()}».</li>
               )}
-            </div>
+              {!searching &&
+                searchResults?.map((r) => (
+                  <li key={r.id}>
+                    <button
+                      className={`note-item${r.id === selectedId ? ' active' : ''}`}
+                      onClick={() => selectNote(r.id)}
+                    >
+                      <span className="note-title">{r.titulo || 'Sin título'}</span>
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <>
+              {allTags.length > 0 && (
+                <div className="tag-filter">
+                  <div className="tag-filter-head">
+                    <span>Etiquetas</span>
+                    {activeTags.length > 0 && (
+                      <button className="link" onClick={() => setActiveTags([])}>
+                        limpiar
+                      </button>
+                    )}
+                  </div>
+                  <div className="tag-filter-list">
+                    {allTags.map((t) => (
+                      <button
+                        key={t.tag}
+                        className={`tag-chip filter${activeTags.includes(t.tag) ? ' active' : ''}`}
+                        onClick={() => toggleTagFilter(t.tag)}
+                      >
+                        #{t.tag} <span className="tag-count">{t.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {activeTags.length > 0 && notes.length > 0 && (
+                    <button className="danger bulk-del" onClick={bulkDeleteShown}>
+                      Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
+                    </button>
+                  )}
+                </div>
+              )}
+              <ul className="note-list">
+                {notes.map((n) => (
+                  <li key={n.id}>
+                    <button
+                      className={`note-item${n.id === selectedId ? ' active' : ''}`}
+                      onClick={() => selectNote(n.id)}
+                    >
+                      <span className="note-title">{n.titulo || 'Sin título'}</span>
+                      {n.archivada && <span className="badge">archivada</span>}
+                    </button>
+                  </li>
+                ))}
+                {notes.length === 0 && <li className="empty">No hay notas todavía.</li>}
+              </ul>
+            </>
           )}
-          <ul className="note-list">
-            {notes.map((n) => (
-              <li key={n.id}>
-                <button
-                  className={`note-item${n.id === selectedId ? ' active' : ''}`}
-                  onClick={() => selectNote(n.id)}
-                >
-                  <span className="note-title">{n.titulo || 'Sin título'}</span>
-                  {n.archivada && <span className="badge">archivada</span>}
-                </button>
-              </li>
-            ))}
-            {notes.length === 0 && <li className="empty">No hay notas todavía.</li>}
-          </ul>
         </aside>
 
         <main className="content">

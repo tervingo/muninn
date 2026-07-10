@@ -4,7 +4,7 @@ import { pool, query } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { ah } from '../lib/asyncHandler.js';
 import { syncEnlaces } from '../lib/wikilinks.js';
-import { actualizarEmbeddingNota } from '../lib/embeddings.js';
+import { actualizarEmbeddingNota, generarEmbedding, toVectorLiteral } from '../lib/embeddings.js';
 import { deleteObjects } from '../lib/r2.js';
 import { EMPTY_DOC, type DocNode, type Note, type RelatedNote, type TagCount } from '../types.js';
 
@@ -132,6 +132,43 @@ router.get(
        FROM notas, unnest(tags) AS tag
        GROUP BY tag
        ORDER BY tag`,
+    );
+    res.json(rows);
+  }),
+);
+
+// GET /api/notes/search/semantic?q=...&limit=10&tags=a,b  → búsqueda semántica (T6.3)
+router.get(
+  '/search/semantic',
+  ah(async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (!q) {
+      res.status(400).json({ error: 'Falta el parámetro de búsqueda «q»' });
+      return;
+    }
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 50) : 10;
+    const tags = normalizeTags(
+      typeof req.query.tags === 'string' ? req.query.tags.split(',') : [],
+    );
+
+    const embedding = await generarEmbedding(q, 'query');
+
+    const conds = ['NOT archivada', 'embedding IS NOT NULL'];
+    const params: unknown[] = [toVectorLiteral(embedding)];
+    if (tags.length > 0) {
+      params.push(tags);
+      conds.push(`tags @> $${params.length}::text[]`);
+    }
+    params.push(limit);
+
+    const { rows } = await query<RelatedNote>(
+      `SELECT id, titulo, embedding <=> $1::vector AS distancia
+       FROM notas
+       WHERE ${conds.join(' AND ')}
+       ORDER BY distancia
+       LIMIT $${params.length}`,
+      params,
     );
     res.json(rows);
   }),
