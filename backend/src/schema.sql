@@ -66,3 +66,10 @@ CREATE TABLE IF NOT EXISTS credenciales_passkey (
   transports TEXT,                  -- lista de transports separados por coma (opcional)
   creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Búsqueda semántica (fase 6). Embeddings de `contenido` generados con Voyage AI
+-- (voyage-4 / voyage-4-lite, dimensión 1024 por defecto). Nulo hasta el primer
+-- debounce de guardado (o hasta que corra el backfill sobre notas ya existentes).
+CREATE EXTENSION IF NOT EXISTS vector;
+ALTER TABLE notas ADD COLUMN IF NOT EXISTS embedding vector(1024);
+CREATE INDEX IF NOT EXISTS idx_notas_embedding ON notas USING hnsw (embedding vector_cosine_ops);

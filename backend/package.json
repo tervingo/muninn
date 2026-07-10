@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "migrate": "tsx src/migrate.ts",
+    "backfill-embeddings": "tsx scripts/backfill-embeddings.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

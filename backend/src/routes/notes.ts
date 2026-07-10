@@ -4,11 +4,16 @@ import { pool, query } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { ah } from '../lib/asyncHandler.js';
 import { syncEnlaces } from '../lib/wikilinks.js';
+import { actualizarEmbeddingNota } from '../lib/embeddings.js';
 import { deleteObjects } from '../lib/r2.js';
 import { EMPTY_DOC, type DocNode, type Note, type TagCount } from '../types.js';
 
 const router = Router();
 router.use(requireAuth);
+
+// Columnas de `notas` a devolver al cliente: todo menos `embedding` (uso interno de
+// búsqueda semántica — 1024 floats que no aporta nada al frontend y pesan innecesariamente).
+const NOTA_COLUMNAS = 'id, titulo, contenido, yjs_state, creado_en, actualizado_en, archivada, tags';
 
 /** Normaliza etiquetas: sin '#' inicial, trim, minúsculas, sin vacíos ni duplicados. */
 function normalizeTags(input: unknown): string[] {
@@ -136,7 +141,9 @@ router.get(
 router.get(
   '/:id',
   ah(async (req, res) => {
-    const { rows } = await query<Note>('SELECT * FROM notas WHERE id = $1', [req.params.id]);
+    const { rows } = await query<Note>(`SELECT ${NOTA_COLUMNAS} FROM notas WHERE id = $1`, [
+      req.params.id,
+    ]);
     const nota = rows[0];
     if (!nota) {
       res.status(404).json({ error: 'Nota no encontrada' });
@@ -174,7 +181,7 @@ router.post(
     const contenido = parsed.data.contenido ?? EMPTY_DOC;
 
     const { rows } = await query<Note>(
-      `INSERT INTO notas (titulo, contenido) VALUES ($1, $2) RETURNING *`,
+      `INSERT INTO notas (titulo, contenido) VALUES ($1, $2) RETURNING ${NOTA_COLUMNAS}`,
       [parsed.data.titulo, contenido],
     );
     const nota = rows[0]!;
@@ -182,6 +189,8 @@ router.post(
     await syncEnlaces(nota.id, contenido);
     // Una nota nueva puede ser destino de wikilinks ya escritos en otras notas.
     await resyncAllEnlaces();
+    // Fire-and-forget: no debe retrasar la respuesta al cliente.
+    void actualizarEmbeddingNota(nota.id, contenido);
 
     res.status(201).json(nota);
   }),
@@ -239,6 +248,14 @@ router.post(
     // Resolver backlinks entre todas las notas (incluidas las recién importadas) una vez.
     await resyncAllEnlaces();
 
+    // Fire-and-forget: en secuencia (no en paralelo) para no saturar la API de Voyage
+    // con una importación masiva, y sin retrasar la respuesta al cliente.
+    void (async () => {
+      for (let i = 0; i < ids.length; i++) {
+        await actualizarEmbeddingNota(ids[i]!, parsed.data.notas[i]!.contenido ?? EMPTY_DOC);
+      }
+    })();
+
     res.status(201).json({ imported: ids.length, ids });
   }),
 );
@@ -253,7 +270,7 @@ router.patch(
       return;
     }
 
-    const { rows: existentes } = await query<Note>('SELECT * FROM notas WHERE id = $1', [
+    const { rows: existentes } = await query<Note>(`SELECT ${NOTA_COLUMNAS} FROM notas WHERE id = $1`, [
       req.params.id,
     ]);
     const previa = existentes[0];
@@ -271,7 +288,7 @@ router.patch(
       `UPDATE notas
        SET titulo = $1, contenido = $2, archivada = $3, tags = $4, actualizado_en = now()
        WHERE id = $5
-       RETURNING *`,
+       RETURNING ${NOTA_COLUMNAS}`,
       [titulo, contenido, archivada, tags, req.params.id],
     );
     const nota = rows[0]!;
@@ -279,6 +296,8 @@ router.patch(
     const tituloCambiado = parsed.data.titulo !== undefined && parsed.data.titulo !== previa.titulo;
     if (parsed.data.contenido !== undefined) {
       await syncEnlaces(nota.id, contenido);
+      // Fire-and-forget: no debe retrasar la respuesta al cliente.
+      void actualizarEmbeddingNota(nota.id, contenido);
     }
     // Si cambió el título, otras notas pueden resolver (o dejar de resolver) hacia ésta.
     if (tituloCambiado) {

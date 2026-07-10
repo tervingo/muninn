@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import { yDocToProsemirrorJSON } from 'y-prosemirror';
 import { query } from '../db.js';
 import { syncEnlaces } from '../lib/wikilinks.js';
+import { actualizarEmbeddingNota } from '../lib/embeddings.js';
 import type { DocNode } from '../types.js';
 
 // El fragmento XML que usa la extensión Collaboration de TipTap por defecto.
@@ -35,5 +36,7 @@ export async function persistDoc(noteId: string, ydoc: Y.Doc): Promise<void> {
 
   if (rowCount && rowCount > 0) {
     await syncEnlaces(noteId, contenido);
+    // Fire-and-forget: no debe retrasar el flush ni la sincronización.
+    void actualizarEmbeddingNota(noteId, contenido);
   }
 }

@@ -26,4 +26,8 @@ export const config = {
     bucket: required('R2_BUCKET_NAME'),
     endpoint: process.env.R2_ENDPOINT ?? `https://${required('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
   },
+  voyage: {
+    apiKey: required('VOYAGE_API_KEY'),
+    model: process.env.VOYAGE_MODEL ?? 'voyage-4-lite',
+  },
 };
