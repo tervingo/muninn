@@ -109,7 +109,84 @@ Bucket R2 **privado**: la nota nunca guarda una URL pública, solo `/api/attachm
   limpieza en R2) usando un WebAuthn *virtual authenticator* vía CDP de Playwright — Windows Hello no
   siempre dispara el diálogo OS dentro de un navegador controlado por automatización.
 
-## Pendiente
+## Fase 6 — búsqueda semántica (PENDIENTE, priorizada sobre T4/T5/Fase 3b/Fase 4)
+
+> T4 (offline-first), T5 (auth del socket), Fase 3b (audio/vídeo) y el backlog de Fase 4
+> (full-text, historial, export, grafo, push) quedan **aparcados temporalmente**. Se retoman
+> después de esta fase. Motivo: con cientos de notas sin más clasificación que etiquetas planas,
+> el descubrimiento de conexiones no vistas aporta más valor inmediato que estas tareas.
+
+Objetivo: encontrar notas por significado, no solo por texto exacto o etiqueta, y descubrir
+relaciones entre notas que nunca se enlazaron manualmente con `[[wikilinks]]`. Se implementa en
+sub-fases incrementales, cada una desplegable y útil por sí sola.
+
+### Decisiones de diseño
+- **Proveedor de embeddings: Voyage AI** (`voyage-4-lite` o `voyage-4`, a confirmar por calidad/coste
+  tras probar). 200M tokens gratis por cuenta, de forma permanente — muy por encima del volumen de
+  notas personales previsto. Var. env.: `VOYAGE_API_KEY`.
+- **Almacén de vectores: pgvector en Neon** (mismo Postgres, sin infraestructura nueva). Confirmar
+  que la extensión está disponible en el plan gratuito de Neon antes de empezar (`CREATE EXTENSION
+  IF NOT EXISTS vector;`).
+- **Fuente del texto a embeder**: el mismo `contenido` (JSON ProseMirror) que ya se deriva de Yjs con
+  debounce 2.5s — no un pipeline nuevo. Se extrae texto plano de ese JSON (helper nuevo, reutilizable
+  con lo que ya exista para backlinks) y se generan/actualizan embeddings desde el mismo punto donde
+  hoy se persiste `contenido` en `backend/src/yjs/`.
+- **Generación de embeddings asíncrona y no bloqueante**: nunca debe retrasar el guardado de la nota
+  ni la respuesta al cliente. Fire-and-forget con log de error si falla la llamada a Voyage (reintento
+  simple o cola en memoria, a valorar según cómo de fiable resulte en la práctica).
+
+### T6.1 — Infraestructura de embeddings
+- Migración: `CREATE EXTENSION IF NOT EXISTS vector;` + `ALTER TABLE notas ADD COLUMN embedding
+  vector(1024);` (ajustar dimensión según el modelo Voyage elegido) + índice HNSW o IVFFlat con
+  `vector_cosine_ops` para que la búsqueda por similitud no haga un escaneo completo al crecer el
+  número de notas.
+- `backend/src/lib/embeddings.ts`: cliente Voyage AI, función `generarEmbedding(texto: string):
+  Promise<number[]>` y función `actualizarEmbeddingNota(notaId, contenido)` que extrae texto plano,
+  llama a Voyage y hace `UPDATE notas SET embedding = $1 WHERE id = $2`.
+- Enganchar `actualizarEmbeddingNota` en el punto de persistencia de `contenido` en
+  `backend/src/yjs/` (mismo debounce de 2.5s que ya dispara el recálculo de backlinks) y también en
+  `POST /api/notes/import` (alta masiva) y en la creación/edición de notas vía REST si aplica.
+- Migración de datos: script puntual para generar embeddings de todas las notas ya existentes
+  (`backend/scripts/backfill-embeddings.ts`), ejecutable una vez en dev y una vez en prod.
+
+### T6.2 — Notas relacionadas (mayor valor / menor esfuerzo, hacer primero)
+- `GET /api/notes/:id/related?limit=5` (auth) → `SELECT id, titulo FROM notas WHERE id != $1 AND NOT
+  archivada ORDER BY embedding <=> (SELECT embedding FROM notas WHERE id = $1) LIMIT $2`. Devolver
+  también la distancia/similitud por si la UI quiere mostrarla o filtrar un umbral mínimo.
+- Frontend: panel lateral en la vista de nota (junto al panel de backlinks existente), sección
+  "Relacionadas" con las notas devueltas, click navega igual que un backlink.
+- Manejar el caso de nota sin embedding aún (recién creada, antes del primer debounce) sin romper la UI.
+
+### T6.3 — Búsqueda semántica
+- `GET /api/notes/search/semantic?q=...&limit=10` (auth) → generar embedding de `q` con Voyage,
+  buscar por `<=>` igual que en T6.2 pero contra la consulta en lugar de contra una nota. Evaluar si
+  combinar con el filtro de etiquetas existente (`?tags=a,b`) para acotar la búsqueda semántica a un
+  subconjunto.
+- Frontend: nueva caja de búsqueda (o ampliar la existente) que distinga búsqueda literal (ya
+  implementable con `tsvector`, sigue en el backlog de Fase 4) de búsqueda semántica — a decidir si
+  son dos modos explícitos o un único cuadro con heurística.
+
+### T6.4 — Mapa semántico (visual, hacerlo cuando ya haya volumen suficiente de notas indexadas)
+- Job batch (`backend/scripts/cluster-notes.ts`, ejecución manual por ahora, no cron) que lee todos
+  los embeddings, aplica reducción de dimensionalidad a 2D (librería `umap-js`, evaluar alternativas
+  en Node) y clustering (k-means simple o similar).
+- Tabla nueva `mapa_notas` (`nota_id`, `x`, `y`, `cluster_id`, `actualizado_en`) para no recalcular en
+  cada carga de la UI.
+- `GET /api/notes/map` (auth) → devuelve los puntos para pintar el mapa.
+- Frontend: vista nueva tipo "constelación" (canvas o SVG), cada punto una nota, color por cluster,
+  click abre la nota. Complementa al grafo de backlinks existente, no lo sustituye.
+
+### T6.5 — Chat RAG sobre las notas (dejar para el final, mayor complejidad de prompt)
+- `POST /api/chat` {pregunta} (auth) → embeder la pregunta, recuperar top-k notas por similitud,
+  construir prompt con extractos de esas notas, llamar a la API de Claude (Anthropic SDK, modelo a
+  decidir) pidiendo que responda citando qué nota(s) usó.
+- Var. env. nueva: `ANTHROPIC_API_KEY`.
+- Frontend: vista de chat simple, respuesta con enlaces clicables a las notas citadas.
+- Cuidado con coste: a diferencia de los embeddings (prácticamente gratis a este volumen), cada
+  pregunta implica una llamada a un modelo de generación — no crítico para uso personal, pero
+  conviene no ejecutarlo en cada tecleo, solo al enviar la pregunta.
+
+## Pendiente (aparcado hasta cerrar Fase 6)
 - **T4 — offline-first (`y-indexeddb`)**: valor medio. Editar offline que sobreviva a recargar/cerrar
   pestaña y fusione al reconectar; cierra una pequeña ventana de pérdida de datos si editas durante un
   corte breve y cierras antes de reconectar (desde T3 el contenido solo se persiste vía socket).
@@ -127,4 +204,4 @@ Bucket R2 **privado**: la nota nunca guarda una URL pública, solo `/api/attachm
   → Stop-Process). Servidores dev: backend `npx tsx watch src/index.ts` (:3000), frontend `npm run dev` (:5173).
 - Tests manuales Yjs en `backend/test/*.mjs` (yjs-sync, yjs-persist) y `frontend/test/provider-sync.mjs`.
 
-Último commit conocido: `4269ecd` (import Obsidian + bulk delete). Modelo usado en el chat: Claude Opus 4.8.
+Último commit conocido: `4269ecd` (import Obsidian + bulk delete). Modelo usado en el chat: Claude Sonnet 5.
