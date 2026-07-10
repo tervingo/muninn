@@ -43,6 +43,14 @@ export interface Backlink {
   titulo: string;
 }
 
+/** Nota relacionada por similitud semántica (T6.2). `distancia` es la distancia
+ * coseno del embedding (0 = idéntico, valores más altos = menos parecido). */
+export interface RelatedNote {
+  id: string;
+  titulo: string;
+  distancia: number;
+}
+
 export const EMPTY_DOC: NoteContent = {
   type: 'doc',
   content: [{ type: 'paragraph' }],

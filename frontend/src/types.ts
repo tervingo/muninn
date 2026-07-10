@@ -38,6 +38,13 @@ export interface Backlink {
   titulo: string;
 }
 
+/** Nota relacionada por similitud semántica (T6.2). */
+export interface RelatedNote {
+  id: string;
+  titulo: string;
+  distancia: number;
+}
+
 export interface AuthStatus {
   authenticated: boolean;
   hasCredential: boolean;

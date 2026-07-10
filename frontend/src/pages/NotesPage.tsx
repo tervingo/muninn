@@ -5,6 +5,7 @@ import {
   type Backlink,
   type Note,
   type NoteSummary,
+  type RelatedNote,
   type TagCount,
   type WsStatus,
 } from '../types';
@@ -26,6 +27,7 @@ export function NotesPage({ onLogout }: Props) {
   const [current, setCurrent] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
   const [backlinks, setBacklinks] = useState<Backlink[]>([]);
+  const [related, setRelated] = useState<RelatedNote[]>([]);
   const [wsStatus, setWsStatus] = useState<WsStatus>('connecting');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
@@ -57,6 +59,10 @@ export function NotesPage({ onLogout }: Props) {
     setBacklinks(await api.getBacklinks(id));
   }, []);
 
+  const loadRelated = useCallback(async (id: string) => {
+    setRelated(await api.getRelated(id));
+  }, []);
+
   // --- Guardado del título (REST, debounced). El contenido lo persiste el servidor. ---
 
   const flushTitle = useCallback(async () => {
@@ -80,15 +86,17 @@ export function NotesPage({ onLogout }: Props) {
     titleTimer.current = setTimeout(() => void flushTitle(), 800);
   }, [flushTitle]);
 
-  // Refresco de backlinks/lista tras editar (el servidor recalcula enlaces al persistir).
+  // Refresco de backlinks/relacionadas/lista tras editar (el servidor recalcula enlaces
+  // y embedding al persistir; el embedding tarda un poco más por la llamada a Voyage).
   const scheduleRefresh = useCallback(() => {
     if (!selectedId) return;
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
     refreshTimer.current = setTimeout(() => {
       void loadBacklinks(selectedId);
+      void loadRelated(selectedId);
       void loadNotes();
     }, 3500);
-  }, [selectedId, loadBacklinks, loadNotes]);
+  }, [selectedId, loadBacklinks, loadRelated, loadNotes]);
 
   // Limpieza de timers al desmontar.
   useEffect(
@@ -110,8 +118,9 @@ export function NotesPage({ onLogout }: Props) {
       setTitle(note.titulo);
       setSidebarOpen(false);
       await loadBacklinks(id);
+      await loadRelated(id);
     },
-    [flushTitle, loadBacklinks],
+    [flushTitle, loadBacklinks, loadRelated],
   );
 
   const newNote = useCallback(async () => {
@@ -342,6 +351,25 @@ export function NotesPage({ onLogout }: Props) {
                       <li key={b.id}>
                         <button className="link" onClick={() => selectNote(b.id)}>
                           {b.titulo}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="related-notes">
+                <h3>Relacionadas</h3>
+                {related.length === 0 ? (
+                  <p className="muted">
+                    Sin notas relacionadas todavía (puede tardar unos segundos tras guardar).
+                  </p>
+                ) : (
+                  <ul>
+                    {related.map((r) => (
+                      <li key={r.id}>
+                        <button className="link" onClick={() => selectNote(r.id)}>
+                          {r.titulo}
                         </button>
                       </li>
                     ))}

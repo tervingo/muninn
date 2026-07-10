@@ -425,6 +425,24 @@ button.link:hover {
   margin: 0;
 }
 
+/* --- Notas relacionadas (búsqueda semántica) --- */
+.related-notes {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+.related-notes h3 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.related-notes ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
 /* --- Autocompletado wikilink (tippy) --- */
 .suggestion-list {
   background: var(--surface);

@@ -6,7 +6,7 @@ import { ah } from '../lib/asyncHandler.js';
 import { syncEnlaces } from '../lib/wikilinks.js';
 import { actualizarEmbeddingNota } from '../lib/embeddings.js';
 import { deleteObjects } from '../lib/r2.js';
-import { EMPTY_DOC, type DocNode, type Note, type TagCount } from '../types.js';
+import { EMPTY_DOC, type DocNode, type Note, type RelatedNote, type TagCount } from '../types.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -164,6 +164,37 @@ router.get(
        WHERE e.nota_destino_id = $1
        ORDER BY n.titulo`,
       [req.params.id],
+    );
+    res.json(rows);
+  }),
+);
+
+// GET /api/notes/:id/related?limit=5  → notas semánticamente parecidas (T6.2)
+router.get(
+  '/:id/related',
+  ah(async (req, res) => {
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 20) : 5;
+
+    const { rows: origen } = await query<{ embedding: string | null }>(
+      'SELECT embedding FROM notas WHERE id = $1',
+      [req.params.id],
+    );
+    const embedding = origen[0]?.embedding;
+    // Nota recién creada (aún sin pasar por el debounce de guardado) o inexistente:
+    // sin embedding no hay con qué comparar, se devuelve vacío en vez de romper.
+    if (!embedding) {
+      res.json([]);
+      return;
+    }
+
+    const { rows } = await query<RelatedNote>(
+      `SELECT id, titulo, embedding <=> $1::vector AS distancia
+       FROM notas
+       WHERE id != $2 AND NOT archivada AND embedding IS NOT NULL
+       ORDER BY distancia
+       LIMIT $3`,
+      [embedding, req.params.id, limit],
     );
     res.json(rows);
   }),

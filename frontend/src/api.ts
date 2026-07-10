@@ -5,6 +5,7 @@ import type {
   NoteContent,
   NoteSummary,
   PasskeyDevice,
+  RelatedNote,
   TagCount,
 } from './types';
 
@@ -76,6 +77,7 @@ export const api = {
     }),
   getNote: (id: string) => request<Note>(`/api/notes/${id}`),
   getBacklinks: (id: string) => request<Backlink[]>(`/api/notes/${id}/backlinks`),
+  getRelated: (id: string) => request<RelatedNote[]>(`/api/notes/${id}/related`),
   createNote: (titulo: string, contenido?: NoteContent) =>
     request<Note>('/api/notes', {
       method: 'POST',
