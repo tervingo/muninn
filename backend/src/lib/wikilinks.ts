@@ -66,3 +66,45 @@ export async function syncEnlaces(notaOrigenId: string, doc: DocNode): Promise<v
     );
   }
 }
+
+/**
+ * Recalcula la tabla `enlaces` para TODAS las notas a la vez (crear o renombrar una nota
+ * puede resolver o romper wikilinks de cualquier otra). A diferencia de `syncEnlaces` nota
+ * a nota, resuelve los títulos en memoria contra un único SELECT y hace un DELETE + INSERT
+ * masivos en vez de una ida y vuelta a la base de datos por nota — con cientos de notas
+ * (p. ej. tras varias importaciones), la versión secuencial podía tardar lo bastante como
+ * para agotar el timeout del proxy (Netlify → Render).
+ */
+export async function resyncAllEnlaces(): Promise<void> {
+  const { rows } = await query<{ id: string; titulo: string; contenido: DocNode }>(
+    'SELECT id, titulo, contenido FROM notas',
+  );
+
+  const idByLowerTitle = new Map<string, string>();
+  for (const row of rows) idByLowerTitle.set(row.titulo.toLowerCase(), row.id);
+
+  const origenIds: string[] = [];
+  const destinoIds: string[] = [];
+  for (const row of rows) {
+    for (const titulo of extractWikilinkTitles(row.contenido)) {
+      const destinoId = idByLowerTitle.get(titulo.toLowerCase());
+      if (destinoId && destinoId !== row.id) {
+        origenIds.push(row.id);
+        destinoIds.push(destinoId);
+      }
+    }
+  }
+
+  await query('DELETE FROM enlaces WHERE nota_origen_id = ANY($1::uuid[])', [
+    rows.map((r) => r.id),
+  ]);
+
+  if (origenIds.length === 0) return;
+
+  await query(
+    `INSERT INTO enlaces (nota_origen_id, nota_destino_id)
+     SELECT * FROM unnest($1::uuid[], $2::uuid[])
+     ON CONFLICT (nota_origen_id, nota_destino_id) DO NOTHING`,
+    [origenIds, destinoIds],
+  );
+}

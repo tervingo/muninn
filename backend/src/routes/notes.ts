@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { pool, query } from '../db.js';
 import { requireAuth } from '../auth/middleware.js';
 import { ah } from '../lib/asyncHandler.js';
-import { syncEnlaces } from '../lib/wikilinks.js';
+import { syncEnlaces, resyncAllEnlaces } from '../lib/wikilinks.js';
 import { actualizarEmbeddingNota, generarEmbedding, toVectorLiteral } from '../lib/embeddings.js';
 import { deleteObjects } from '../lib/r2.js';
 import { EMPTY_DOC, type DocNode, type Note, type RelatedNote, type TagCount } from '../types.js';
@@ -82,16 +82,6 @@ async function deleteAttachmentsFor(notaIds: string[]): Promise<void> {
   await deleteObjects(rows.map((r) => r.url)).catch((err) =>
     console.error('Error borrando adjuntos de R2:', err),
   );
-}
-
-/** Re-sincroniza los enlaces de TODAS las notas (para resolver backlinks tras crear/renombrar). */
-async function resyncAllEnlaces(): Promise<void> {
-  const { rows } = await query<{ id: string; contenido: DocNode }>(
-    'SELECT id, contenido FROM notas',
-  );
-  for (const row of rows) {
-    await syncEnlaces(row.id, row.contenido);
-  }
 }
 
 // GET /api/notes?archivadas=true|false&tags=a,b  → listado (resumen), filtrable por etiquetas (AND)
