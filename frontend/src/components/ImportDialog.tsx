@@ -28,6 +28,10 @@ export function ImportDialog({ onClose, onImported }: Props) {
   const [imported, setImported] = useState(0);
   const [skipped, setSkipped] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // La detección automática (carpeta con subcarpeta `_resources`) no ve notebooks sin
+  // ninguna imagen: el navegador no expone carpetas vacías vía input[webkitdirectory].
+  // Esta casilla es el refuerzo manual para ese caso.
+  const [fromEvernote, setFromEvernote] = useState(false);
 
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -59,6 +63,7 @@ export function ImportDialog({ onClose, onImported }: Props) {
       if (idx > 0) evernoteFolders.add(relParts.slice(0, idx).join('/').toLowerCase());
     }
     const isEvernoteNote = (noteDir: string) =>
+      fromEvernote ||
       evernoteFolders.has(noteDir) ||
       [...evernoteFolders].some((folder) => noteDir.startsWith(`${folder}/`));
 
@@ -173,8 +178,19 @@ export function ImportDialog({ onClose, onImported }: Props) {
               título del archivo y una etiqueta por cada carpeta de su ruta. El frontmatter se
               elimina; los <code>[[wikilinks]]</code> se conservan como texto (siguen generando
               backlinks). Las imágenes embebidas (<code>![[img.png]]</code> o markdown estándar)
-              se suben a R2 y se enlazan automáticamente.
+              se suben a R2 y se enlazan automáticamente. Si la carpeta tiene una subcarpeta
+              <code> _resources</code> (export de Evernote) las notas llevan también <code>#evernote</code>
+              automáticamente — salvo que ese notebook no tenga ninguna imagen, en cuyo caso
+              márcalo abajo a mano.
             </p>
+            <label className="archived-toggle">
+              <input
+                type="checkbox"
+                checked={fromEvernote}
+                onChange={(e) => setFromEvernote(e.target.checked)}
+              />
+              Viene de Evernote (fuerza #evernote aunque el notebook no tenga imágenes)
+            </label>
             <label className="primary import-pick">
               Seleccionar carpeta del vault
               <input
