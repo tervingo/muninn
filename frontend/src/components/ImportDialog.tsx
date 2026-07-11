@@ -34,14 +34,33 @@ export function ImportDialog({ onClose, onImported }: Props) {
     const all = Array.from(fileList);
     const mdFiles = all.filter((f) => f.name.toLowerCase().endsWith('.md'));
 
-    // Mapa de imágenes del vault por nombre de archivo (en minúsculas). Si hay nombres
-    // duplicados en carpetas distintas, gana el último — asunción razonable para un vault
-    // personal, donde los adjuntos suelen tener nombres únicos.
-    const imageFiles = new Map<string, File>();
+    // Imágenes del vault, indexadas por dos claves (minúsculas): ruta completa —siempre
+    // única, resuelve el caso típico de export de Evernote donde cada nota tiene su propia
+    // subcarpeta `_resources/<nota>.resources/` y varias reusan el mismo nombre de archivo,
+    // p. ej. "ScreenClip.png"— y nombre de archivo solo, para embeds `![[img.png]]` sin ruta
+    // (ahí sí gana el último si hay duplicados, asunción razonable para ese caso).
+    const imageFileByKey = new Map<string, File>();
     for (const f of all) {
-      if (IMAGE_EXT_RE.test(f.name)) imageFiles.set(f.name.toLowerCase(), f);
+      if (!IMAGE_EXT_RE.test(f.name)) continue;
+      imageFileByKey.set((f.webkitRelativePath || f.name).toLowerCase(), f);
+      imageFileByKey.set(f.name.toLowerCase(), f);
     }
-    const imageNames = new Set(imageFiles.keys());
+    const imageKeys = new Set(imageFileByKey.keys());
+
+    // Carpetas con una subcarpeta `_resources` — huella del importador de Evernote a
+    // Obsidian (`_resources/<nota>.resources/...`), presente aunque no se seleccione la
+    // carpeta "Evernote" en sí (el navegador no ve carpetas por encima de la seleccionada).
+    // Toda nota dentro de una de estas carpetas (o de una subcarpeta suya) recibe #evernote,
+    // tenga o no imagen propia.
+    const evernoteFolders = new Set<string>();
+    for (const f of all) {
+      const relParts = (f.webkitRelativePath || f.name).split('/');
+      const idx = relParts.findIndex((p) => p.toLowerCase() === '_resources');
+      if (idx > 0) evernoteFolders.add(relParts.slice(0, idx).join('/').toLowerCase());
+    }
+    const isEvernoteNote = (noteDir: string) =>
+      evernoteFolders.has(noteDir) ||
+      [...evernoteFolders].some((folder) => noteDir.startsWith(`${folder}/`));
 
     if (mdFiles.length === 0) {
       setError('No se han encontrado archivos .md en la carpeta.');
@@ -56,7 +75,7 @@ export function ImportDialog({ onClose, onImported }: Props) {
     try {
       const notas: Array<{ titulo: string; contenido: NoteContent; tags: string[] }> = [];
       const pendingByIndex: string[][] = [];
-      const usedImageNames = new Set<string>();
+      const usedImageKeys = new Set<string>();
 
       for (let i = 0; i < mdFiles.length; i++) {
         const f = mdFiles[i]!;
@@ -64,14 +83,18 @@ export function ImportDialog({ onClose, onImported }: Props) {
         const filename = parts[parts.length - 1]!;
         const titulo = filename.replace(/\.md$/i, '').trim() || 'Sin título';
         // Todas las carpetas de la ruta (incluida la carpeta raíz seleccionada) → una
-        // etiqueta por nivel, más "obsidian" para todas las notas importadas.
+        // etiqueta por nivel, más "obsidian" para todas las notas importadas, más
+        // "evernote" si la nota vive bajo una carpeta con subcarpeta `_resources`.
         const folderTags = parts.slice(0, -1).map(normalizeTag).filter(Boolean);
-        const tags = [...new Set(['obsidian', ...folderTags])];
+        const noteDir = parts.slice(0, -1).join('/').toLowerCase();
+        const tags = [
+          ...new Set(['obsidian', ...(isEvernoteNote(noteDir) ? ['evernote'] : []), ...folderTags]),
+        ];
         let text = stripFrontmatter(await f.text());
-        text = resolveImageEmbeds(text, imageNames);
+        text = resolveImageEmbeds(text, noteDir, imageKeys);
         const contenido = markdownToDoc(text);
         const pending = collectPendingImageEmbeds(contenido);
-        pending.forEach((n) => usedImageNames.add(n));
+        pending.forEach((k) => usedImageKeys.add(k));
         notas.push({ titulo, contenido, tags });
         pendingByIndex.push(pending);
         setProgress({ done: i + 1, total: mdFiles.length });
@@ -100,19 +123,19 @@ export function ImportDialog({ onClose, onImported }: Props) {
         let doneImgNotes = 0;
         for (const { idx, names } of notesWithImages) {
           const notaId = ids[idx]!;
-          const urlByName = new Map<string, string>();
-          for (const name of names) {
-            const file = imageFiles.get(name.toLowerCase());
+          const urlByKey = new Map<string, string>();
+          for (const key of names) {
+            const file = imageFileByKey.get(key);
             if (!file) continue;
             try {
-              urlByName.set(name, await uploadImage(notaId, file));
+              urlByKey.set(key, await uploadImage(notaId, file));
             } catch {
               // Se deja la referencia sin resolver: la imagen no se mostrará, pero la
               // nota y el resto de su contenido se conservan.
             }
           }
-          if (urlByName.size > 0) {
-            const contenido = resolveImageEmbedRefs(notas[idx]!.contenido, urlByName);
+          if (urlByKey.size > 0) {
+            const contenido = resolveImageEmbedRefs(notas[idx]!.contenido, urlByKey);
             await api.updateNote(notaId, { contenido });
           }
           doneImgNotes++;
@@ -120,7 +143,7 @@ export function ImportDialog({ onClose, onImported }: Props) {
         }
       }
 
-      setSkipped(Math.max(all.length - mdFiles.length - usedImageNames.size, 0));
+      setSkipped(Math.max(all.length - mdFiles.length - usedImageKeys.size, 0));
       disposeMarkdownEditor();
       setPhase('done');
       onImported();

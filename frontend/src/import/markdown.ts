@@ -58,33 +58,74 @@ export const EMBED_SCHEME = 'obsidian-embed:';
 const OBSIDIAN_EMBED_RE = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
 const MD_IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
-function basename(pathLike: string): string {
+/** Trocea una ruta en sus segmentos, decodificando cada uno (tolerante a `%xx` inválido). */
+function splitPathSegments(pathLike: string): string[] {
   const clean = pathLike.split(/[?#]/)[0] ?? '';
-  const parts = clean.split(/[/\\]/);
-  try {
-    return decodeURIComponent(parts[parts.length - 1] ?? '').trim();
-  } catch {
-    return (parts[parts.length - 1] ?? '').trim();
+  return clean.split(/[/\\]/).map((part) => {
+    try {
+      return decodeURIComponent(part);
+    } catch {
+      return part;
+    }
+  });
+}
+
+function basename(pathLike: string): string {
+  const parts = splitPathSegments(pathLike);
+  return (parts[parts.length - 1] ?? '').trim();
+}
+
+/**
+ * Resuelve una ruta relativa (con `.`/`..`) contra la carpeta de la nota que la referencia,
+ * dentro del vault seleccionado. P. ej. `resolveRelativePath('cymraeg', './_resources/a.png')`
+ * → `cymraeg/_resources/a.png`.
+ */
+function resolveRelativePath(noteDir: string, ref: string): string {
+  const stack = noteDir ? noteDir.split('/') : [];
+  for (const raw of splitPathSegments(ref)) {
+    const seg = raw.trim();
+    if (seg === '' || seg === '.') continue;
+    if (seg === '..') {
+      stack.pop();
+      continue;
+    }
+    stack.push(seg);
   }
+  return stack.join('/');
 }
 
 /**
  * Reescribe referencias a imágenes locales —embeds `![[img.png]]` de Obsidian y markdown
- * estándar `![alt](ruta/img.png)`— a `EMBED_SCHEME<nombre>` cuando el nombre de archivo
- * (sin distinguir mayúsculas) está en `imageNames`. El resto del texto, incluidas las URLs
- * http(s) externas, no se toca.
+ * estándar `![alt](ruta/img.png)`— a `EMBED_SCHEME<clave>` cuando se reconoce la imagen en
+ * `imageKeys` (claves en minúsculas: ruta completa dentro del vault, y también nombre de
+ * archivo solo). Si la referencia incluye una ruta (p. ej. `./_resources/Nota.resources/x.png`,
+ * típico de vaults exportados de Evernote donde varias notas reusan el mismo nombre de archivo
+ * en subcarpetas distintas) se resuelve esa ruta relativa a la carpeta de la nota y se empareja
+ * por ruta completa primero, para no confundir imágenes homónimas de notas distintas; si no hay
+ * ruta o no se encuentra, cae de vuelta al nombre de archivo solo (comportamiento previo). El
+ * resto del texto, incluidas las URLs http(s) externas, no se toca.
  */
-export function resolveImageEmbeds(md: string, imageNames: Set<string>): string {
+export function resolveImageEmbeds(md: string, noteDir: string, imageKeys: Set<string>): string {
+  function resolveKey(ref: string): string | null {
+    const trimmed = ref.trim();
+    if (/[/\\]/.test(trimmed)) {
+      const fullPath = resolveRelativePath(noteDir, trimmed).toLowerCase();
+      if (imageKeys.has(fullPath)) return fullPath;
+    }
+    const name = basename(trimmed).toLowerCase();
+    return imageKeys.has(name) ? name : null;
+  }
+
   let out = md.replace(OBSIDIAN_EMBED_RE, (match, ref: string) => {
-    const name = basename(ref.trim());
-    if (!imageNames.has(name.toLowerCase())) return match;
-    return `![${name}](${EMBED_SCHEME}${encodeURIComponent(name)})`;
+    const key = resolveKey(ref);
+    if (!key) return match;
+    return `![${basename(ref)}](${EMBED_SCHEME}${encodeURIComponent(key)})`;
   });
   out = out.replace(MD_IMAGE_RE, (match, alt: string, url: string) => {
     if (/^[a-z]+:\/\//i.test(url) || url.startsWith(EMBED_SCHEME)) return match;
-    const name = basename(url);
-    if (!imageNames.has(name.toLowerCase())) return match;
-    return `![${alt || name}](${EMBED_SCHEME}${encodeURIComponent(name)})`;
+    const key = resolveKey(url);
+    if (!key) return match;
+    return `![${alt || basename(url)}](${EMBED_SCHEME}${encodeURIComponent(key)})`;
   });
   return out;
 }
