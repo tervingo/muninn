@@ -100,12 +100,12 @@ export function NotesPage({ onLogout }: Props) {
     searchTimer.current = setTimeout(() => void runSearch(value), 500);
   };
 
-  // Añade/quita una etiqueta a todas las notas de los resultados de búsqueda actuales.
-  const bulkTagSearchResults = useCallback(
-    async (action: 'add' | 'remove') => {
+  // Añade/quita una etiqueta a un conjunto de notas (resultados de búsqueda o de un filtro
+  // por etiqueta) de una sola vez.
+  const bulkTagIds = useCallback(
+    async (ids: string[], action: 'add' | 'remove') => {
       const tag = bulkTagInput.trim();
-      if (!tag || !searchResults || searchResults.length === 0) return;
-      const ids = searchResults.map((r) => r.id);
+      if (!tag || ids.length === 0) return;
       setBulkTagging(true);
       try {
         await api.bulkTag(ids, tag, action);
@@ -119,7 +119,7 @@ export function NotesPage({ onLogout }: Props) {
         setBulkTagging(false);
       }
     },
-    [bulkTagInput, searchResults, selectedId, loadTags, loadNotes],
+    [bulkTagInput, selectedId, loadTags, loadNotes],
   );
 
   // --- Guardado del título (REST, debounced). El contenido lo persiste el servidor. ---
@@ -369,13 +369,13 @@ export function NotesPage({ onLogout }: Props) {
                   />
                   <button
                     disabled={!bulkTagInput.trim() || bulkTagging}
-                    onClick={() => bulkTagSearchResults('add')}
+                    onClick={() => bulkTagIds(searchResults.map((r) => r.id), 'add')}
                   >
                     + Añadir a {searchResults.length}
                   </button>
                   <button
                     disabled={!bulkTagInput.trim() || bulkTagging}
-                    onClick={() => bulkTagSearchResults('remove')}
+                    onClick={() => bulkTagIds(searchResults.map((r) => r.id), 'remove')}
                   >
                     − Quitar de {searchResults.length}
                   </button>
@@ -406,9 +406,32 @@ export function NotesPage({ onLogout }: Props) {
                     ))}
                   </div>
                   {activeTags.length > 0 && notes.length > 0 && (
-                    <button className="danger bulk-del" onClick={bulkDeleteShown}>
-                      Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
-                    </button>
+                    <>
+                      <button className="danger bulk-del" onClick={bulkDeleteShown}>
+                        Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
+                      </button>
+                      <div className="bulk-tag-box">
+                        <input
+                          type="text"
+                          placeholder="etiqueta"
+                          value={bulkTagInput}
+                          onChange={(e) => setBulkTagInput(e.target.value)}
+                          disabled={bulkTagging}
+                        />
+                        <button
+                          disabled={!bulkTagInput.trim() || bulkTagging}
+                          onClick={() => bulkTagIds(notes.map((n) => n.id), 'add')}
+                        >
+                          + Añadir a {notes.length}
+                        </button>
+                        <button
+                          disabled={!bulkTagInput.trim() || bulkTagging}
+                          onClick={() => bulkTagIds(notes.map((n) => n.id), 'remove')}
+                        >
+                          − Quitar de {notes.length}
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
