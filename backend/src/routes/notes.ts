@@ -49,6 +49,12 @@ const bulkDeleteSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(5000),
 });
 
+const bulkTagSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(5000),
+  tag: z.string().trim().min(1),
+  action: z.enum(['add', 'remove']),
+});
+
 const importSchema = z.object({
   notas: z
     .array(
@@ -268,6 +274,40 @@ router.post(
       parsed.data.ids,
     ]);
     res.json({ deleted: rowCount ?? 0 });
+  }),
+);
+
+// POST /api/notes/bulk-tag  → añade o quita una etiqueta a varias notas de una vez (p. ej.
+// resultados de una búsqueda semántica). Una sola consulta masiva, no un bucle por nota:
+// las etiquetas no forman parte del documento ni del texto embedido, así que no hace falta
+// recalcular enlaces ni embeddings.
+router.post(
+  '/bulk-tag',
+  ah(async (req, res) => {
+    const parsed = bulkTagSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Datos inválidos' });
+      return;
+    }
+    const tag = normalizeTags([parsed.data.tag])[0];
+    if (!tag) {
+      res.status(400).json({ error: 'Etiqueta inválida' });
+      return;
+    }
+
+    const { rowCount } =
+      parsed.data.action === 'add'
+        ? await query(
+            `UPDATE notas SET tags = tags || $2::text[], actualizado_en = now()
+             WHERE id = ANY($1::uuid[]) AND NOT (tags @> $2::text[])`,
+            [parsed.data.ids, [tag]],
+          )
+        : await query(
+            `UPDATE notas SET tags = array_remove(tags, $2::text), actualizado_en = now()
+             WHERE id = ANY($1::uuid[]) AND tags @> ARRAY[$2::text]`,
+            [parsed.data.ids, tag],
+          );
+    res.json({ updated: rowCount ?? 0 });
   }),
 );
 

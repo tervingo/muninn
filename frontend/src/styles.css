@@ -301,6 +301,27 @@ button.link:hover {
   width: 100%;
   font-size: 0.85rem;
 }
+.bulk-tag-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.bulk-tag-box input {
+  flex: 1;
+  min-width: 6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+}
+.bulk-tag-box button {
+  font-size: 0.8rem;
+}
 .tag-chip.filter.active .tag-count {
   opacity: 0.8;
 }

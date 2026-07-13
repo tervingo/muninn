@@ -35,6 +35,8 @@ export function NotesPage({ onLogout }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<RelatedNote[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [bulkTagInput, setBulkTagInput] = useState('');
+  const [bulkTagging, setBulkTagging] = useState(false);
 
   // El contenido lo persiste el servidor desde Yjs; aquí solo guardamos el título (REST).
   const pendingTitle = useRef<string | null>(null);
@@ -97,6 +99,28 @@ export function NotesPage({ onLogout }: Props) {
     }
     searchTimer.current = setTimeout(() => void runSearch(value), 500);
   };
+
+  // Añade/quita una etiqueta a todas las notas de los resultados de búsqueda actuales.
+  const bulkTagSearchResults = useCallback(
+    async (action: 'add' | 'remove') => {
+      const tag = bulkTagInput.trim();
+      if (!tag || !searchResults || searchResults.length === 0) return;
+      const ids = searchResults.map((r) => r.id);
+      setBulkTagging(true);
+      try {
+        await api.bulkTag(ids, tag, action);
+        setBulkTagInput('');
+        await loadTags();
+        await loadNotes();
+        if (selectedId && ids.includes(selectedId)) {
+          setCurrent(await api.getNote(selectedId));
+        }
+      } finally {
+        setBulkTagging(false);
+      }
+    },
+    [bulkTagInput, searchResults, selectedId, loadTags, loadNotes],
+  );
 
   // --- Guardado del título (REST, debounced). El contenido lo persiste el servidor. ---
 
@@ -316,23 +340,48 @@ export function NotesPage({ onLogout }: Props) {
           </div>
 
           {searchQuery.trim() ? (
-            <ul className="note-list">
-              {searching && <li className="empty">Buscando…</li>}
-              {!searching && searchResults?.length === 0 && (
-                <li className="empty">Sin resultados para «{searchQuery.trim()}».</li>
+            <>
+              <ul className="note-list">
+                {searching && <li className="empty">Buscando…</li>}
+                {!searching && searchResults?.length === 0 && (
+                  <li className="empty">Sin resultados para «{searchQuery.trim()}».</li>
+                )}
+                {!searching &&
+                  searchResults?.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        className={`note-item${r.id === selectedId ? ' active' : ''}`}
+                        onClick={() => selectNote(r.id)}
+                      >
+                        <span className="note-title">{r.titulo || 'Sin título'}</span>
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+              {!searching && searchResults && searchResults.length > 0 && (
+                <div className="bulk-tag-box">
+                  <input
+                    type="text"
+                    placeholder="etiqueta"
+                    value={bulkTagInput}
+                    onChange={(e) => setBulkTagInput(e.target.value)}
+                    disabled={bulkTagging}
+                  />
+                  <button
+                    disabled={!bulkTagInput.trim() || bulkTagging}
+                    onClick={() => bulkTagSearchResults('add')}
+                  >
+                    + Añadir a {searchResults.length}
+                  </button>
+                  <button
+                    disabled={!bulkTagInput.trim() || bulkTagging}
+                    onClick={() => bulkTagSearchResults('remove')}
+                  >
+                    − Quitar de {searchResults.length}
+                  </button>
+                </div>
               )}
-              {!searching &&
-                searchResults?.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      className={`note-item${r.id === selectedId ? ' active' : ''}`}
-                      onClick={() => selectNote(r.id)}
-                    >
-                      <span className="note-title">{r.titulo || 'Sin título'}</span>
-                    </button>
-                  </li>
-                ))}
-            </ul>
+            </>
           ) : (
             <>
               {allTags.length > 0 && (

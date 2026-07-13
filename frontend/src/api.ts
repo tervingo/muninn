@@ -99,6 +99,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ ids }),
     }),
+  bulkTag: (ids: string[], tag: string, action: 'add' | 'remove') =>
+    request<{ updated: number }>('/api/notes/bulk-tag', {
+      method: 'POST',
+      body: JSON.stringify({ ids, tag, action }),
+    }),
 
   // Adjuntos (imágenes)
   createAttachment: (notaId: string, nombreOriginal: string, mimeType: string, tamano: number) =>
