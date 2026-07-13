@@ -73,3 +73,14 @@ CREATE TABLE IF NOT EXISTS credenciales_passkey (
 CREATE EXTENSION IF NOT EXISTS vector;
 ALTER TABLE notas ADD COLUMN IF NOT EXISTS embedding vector(1024);
 CREATE INDEX IF NOT EXISTS idx_notas_embedding ON notas USING hnsw (embedding vector_cosine_ops);
+
+-- Mapa semántico (fase 6, T6.4): posición 2D (UMAP) y cluster (k-means) precalculados
+-- por `backend/scripts/cluster-notes.ts` (ejecución manual, no cron) a partir del
+-- embedding — se persiste para no recalcular en cada carga de la UI.
+CREATE TABLE IF NOT EXISTS mapa_notas (
+  nota_id UUID PRIMARY KEY REFERENCES notas(id) ON DELETE CASCADE,
+  x REAL NOT NULL,
+  y REAL NOT NULL,
+  cluster_id INT NOT NULL,
+  actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);

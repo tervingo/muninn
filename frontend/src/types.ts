@@ -58,6 +58,15 @@ export interface PasskeyDevice {
   creado_en: string;
 }
 
+/** Punto del mapa semántico (T6.4). */
+export interface MapPoint {
+  id: string;
+  titulo: string;
+  x: number;
+  y: number;
+  cluster_id: number;
+}
+
 export const EMPTY_DOC: NoteContent = {
   type: 'doc',
   content: [{ type: 'paragraph' }],

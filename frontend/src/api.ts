@@ -1,6 +1,7 @@
 import type {
   AuthStatus,
   Backlink,
+  MapPoint,
   Note,
   NoteContent,
   NoteSummary,
@@ -80,6 +81,7 @@ export const api = {
   getRelated: (id: string) => request<RelatedNote[]>(`/api/notes/${id}/related`),
   semanticSearch: (q: string) =>
     request<RelatedNote[]>(`/api/notes/search/semantic?q=${encodeURIComponent(q)}`),
+  getMap: () => request<MapPoint[]>('/api/notes/map'),
   createNote: (titulo: string, contenido?: NoteContent) =>
     request<Note>('/api/notes', {
       method: 'POST',

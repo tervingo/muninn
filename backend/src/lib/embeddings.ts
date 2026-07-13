@@ -88,6 +88,11 @@ export function toVectorLiteral(embedding: number[]): string {
   return `[${embedding.join(',')}]`;
 }
 
+/** Inversa de `toVectorLiteral`: parsea el texto que devuelve `pg` para una columna `vector`. */
+export function parseVectorLiteral(literal: string): number[] {
+  return literal.slice(1, -1).split(',').map(Number);
+}
+
 /**
  * Recalcula y persiste el embedding de una nota a partir de su contenido.
  * Pensada para llamarse "fire-and-forget" (no bloquea guardado ni respuesta al

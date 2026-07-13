@@ -6,7 +6,7 @@ import { ah } from '../lib/asyncHandler.js';
 import { syncEnlaces, resyncAllEnlaces } from '../lib/wikilinks.js';
 import { actualizarEmbeddingNota, generarEmbedding, toVectorLiteral } from '../lib/embeddings.js';
 import { deleteObjects } from '../lib/r2.js';
-import { EMPTY_DOC, type DocNode, type Note, type RelatedNote, type TagCount } from '../types.js';
+import { EMPTY_DOC, type DocNode, type MapPoint, type Note, type RelatedNote, type TagCount } from '../types.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -128,6 +128,21 @@ router.get(
        FROM notas, unnest(tags) AS tag
        GROUP BY tag
        ORDER BY tag`,
+    );
+    res.json(rows);
+  }),
+);
+
+// GET /api/notes/map  → puntos del mapa semántico precalculado (T6.4)
+router.get(
+  '/map',
+  ah(async (_req, res) => {
+    const { rows } = await query<MapPoint>(
+      `SELECT n.id, n.titulo, m.x, m.y, m.cluster_id
+       FROM mapa_notas m
+       JOIN notas n ON n.id = m.nota_id
+       WHERE NOT n.archivada
+       ORDER BY m.cluster_id`,
     );
     res.json(rows);
   }),

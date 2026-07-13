@@ -51,6 +51,15 @@ export interface RelatedNote {
   distancia: number;
 }
 
+/** Punto del mapa semántico (T6.4): posición 2D (UMAP) y cluster (k-means). */
+export interface MapPoint {
+  id: string;
+  titulo: string;
+  x: number;
+  y: number;
+  cluster_id: number;
+}
+
 export const EMPTY_DOC: NoteContent = {
   type: 'doc',
   content: [{ type: 'paragraph' }],

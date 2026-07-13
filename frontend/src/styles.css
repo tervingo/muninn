@@ -10,6 +10,16 @@
   --border: #45475a;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Paleta categórica (orden fijo, validada contra --bg #1e1e2e — skill de dataviz) */
+  --cluster-1: #3987e5;
+  --cluster-2: #199e70;
+  --cluster-3: #c98500;
+  --cluster-4: #008300;
+  --cluster-5: #9085e9;
+  --cluster-6: #e66767;
+  --cluster-7: #d55181;
+  --cluster-8: #d95926;
 }
 
 * {
@@ -561,6 +571,46 @@ button.link:hover {
 .enroll-msg {
   color: var(--accent-dim);
   max-width: none;
+}
+
+/* --- Mapa semántico (T6.4) --- */
+.map-modal {
+  max-width: 900px;
+  width: 90vw;
+}
+.map-svg {
+  width: 100%;
+  height: 65vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.map-point {
+  cursor: pointer;
+  transition: r 0.1s ease;
+}
+.map-point:hover {
+  r: 2.2;
+  stroke: var(--text);
+  stroke-width: 0.3;
+}
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+}
+.map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.map-legend-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 button.secondary {
   background: transparent;
