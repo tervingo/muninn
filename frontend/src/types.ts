@@ -67,6 +67,12 @@ export interface MapPoint {
   cluster_id: number;
 }
 
+/** Respuesta del chat RAG (T6.5): la respuesta y las notas realmente citadas. */
+export interface ChatResponse {
+  respuesta: string;
+  notas: Array<{ id: string; titulo: string }>;
+}
+
 export const EMPTY_DOC: NoteContent = {
   type: 'doc',
   content: [{ type: 'paragraph' }],

@@ -1,6 +1,7 @@
 import type {
   AuthStatus,
   Backlink,
+  ChatResponse,
   MapPoint,
   Note,
   NoteContent,
@@ -105,6 +106,12 @@ export const api = {
     request<{ updated: number }>('/api/notes/bulk-tag', {
       method: 'POST',
       body: JSON.stringify({ ids, tag, action }),
+    }),
+
+  chat: (pregunta: string) =>
+    request<ChatResponse>('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({ pregunta }),
     }),
 
   // Adjuntos (imágenes)

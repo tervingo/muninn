@@ -14,6 +14,7 @@ import { DevicesDialog } from '../components/DevicesDialog';
 import { TagEditor } from '../components/TagEditor';
 import { ImportDialog } from '../components/ImportDialog';
 import { MapView } from '../components/MapView';
+import { ChatView } from '../components/ChatView';
 
 interface Props {
   onLogout: () => void;
@@ -34,6 +35,7 @@ export function NotesPage({ onLogout }: Props) {
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<RelatedNote[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -299,6 +301,7 @@ export function NotesPage({ onLogout }: Props) {
                 : 'Sin conexión'
             : ''}
         </span>
+        <button className="icon-btn" onClick={() => setChatOpen(true)}>Chat</button>
         <button className="icon-btn" onClick={() => setMapOpen(true)}>Mapa</button>
         <button className="icon-btn" onClick={() => setDevicesOpen(true)}>Dispositivos</button>
         <button className="icon-btn" onClick={logout}>Salir</button>
@@ -307,6 +310,9 @@ export function NotesPage({ onLogout }: Props) {
       {devicesOpen && <DevicesDialog onClose={() => setDevicesOpen(false)} />}
       {mapOpen && (
         <MapView onClose={() => setMapOpen(false)} onSelectNote={(id) => void selectNote(id)} />
+      )}
+      {chatOpen && (
+        <ChatView onClose={() => setChatOpen(false)} onSelectNote={(id) => void selectNote(id)} />
       )}
       {importOpen && (
         <ImportDialog

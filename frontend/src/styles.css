@@ -612,6 +612,57 @@ button.link:hover {
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+/* --- Chat RAG (T6.5) --- */
+.chat-modal {
+  max-width: 620px;
+  height: 75vh;
+  max-height: 75vh;
+  overflow: hidden;
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.chat-turn {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+.chat-question {
+  font-weight: 600;
+  margin: 0 0 0.4rem;
+}
+.chat-answer {
+  color: var(--text);
+  margin: 0 0 0.4rem;
+  white-space: pre-wrap;
+}
+.chat-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  font-size: 0.85rem;
+}
+.chat-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.chat-input-row input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+}
+.chat-input-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 button.secondary {
   background: transparent;
   border: 1px solid var(--accent);

@@ -30,4 +30,7 @@ export const config = {
     apiKey: required('VOYAGE_API_KEY'),
     model: process.env.VOYAGE_MODEL ?? 'voyage-4-lite',
   },
+  anthropic: {
+    apiKey: required('ANTHROPIC_API_KEY'),
+  },
 };

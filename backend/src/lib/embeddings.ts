@@ -26,6 +26,38 @@ export function extractPlainText(doc: DocNode | null | undefined): string {
   return parts.join(' ').trim();
 }
 
+const BLOCK_TYPES = new Set(['paragraph', 'heading', 'codeBlock']);
+
+/**
+ * Como `extractPlainText`, pero conserva un salto de línea por bloque (párrafo,
+ * encabezado, código) en vez de aplastarlo todo con espacios. Para el chat RAG
+ * (T6.5): una nota de líneas "Campo: valor" se aplastaría en una sola frase
+ * ambigua con `extractPlainText` y Claude puede confundir qué valor va con qué
+ * etiqueta — comprobado con un caso real (bucket/token de R2 fusionados).
+ */
+export function extractStructuredText(doc: DocNode | null | undefined): string {
+  const lines: string[] = [];
+  let current = '';
+
+  function flush(): void {
+    if (current.trim()) lines.push(current.trim());
+    current = '';
+  }
+
+  function walk(node: DocNode | undefined): void {
+    if (!node || typeof node !== 'object') return;
+    if (typeof node.text === 'string') current += node.text;
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) walk(child);
+    }
+    if (BLOCK_TYPES.has(node.type)) flush();
+  }
+
+  walk(doc ?? undefined);
+  flush();
+  return lines.join('\n');
+}
+
 /**
  * Genera el embedding de un texto con Voyage AI.
  * `inputType` sigue la recomendación de Voyage para mejorar la calidad del retrieval:
