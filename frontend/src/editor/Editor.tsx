@@ -3,6 +3,10 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import Image from '@tiptap/extension-image';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { useEffect, useRef, useState } from 'react';
@@ -88,6 +92,12 @@ function CollabEditor({
       MuninnLink,
       WikiLink.configure({ getTitles: () => titlesRef.current }),
       Image.configure({ inline: false }),
+      // Sin `resizable`: el plugin de columnResizing de Table mantiene su propio
+      // estado en un plugin de ProseMirror aparte, y colisiona con Yjs/Collaboration.
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     editorProps: {
       handlePaste: (_view, event) => {

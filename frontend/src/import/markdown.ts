@@ -1,12 +1,16 @@
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
 import { Markdown } from 'tiptap-markdown';
 import { MuninnLink } from '../editor/link';
 import type { DocNode, NoteContent } from '../types';
 
 // Editor "headless" reutilizable para convertir Markdown → JSON ProseMirror.
-// Usa el mismo esquema base que el editor real (StarterKit + enlaces + imagen), sin Yjs.
+// Usa el mismo esquema base que el editor real (StarterKit + enlaces + imagen + tabla), sin Yjs.
 let editor: Editor | null = null;
 
 function getEditor(): Editor {
@@ -16,6 +20,10 @@ function getEditor(): Editor {
         StarterKit,
         MuninnLink,
         Image.configure({ inline: false }),
+        Table.configure({ resizable: false }),
+        TableRow,
+        TableHeader,
+        TableCell,
         Markdown.configure({ html: false, linkify: true }),
       ],
     });
