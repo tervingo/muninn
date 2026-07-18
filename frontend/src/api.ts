@@ -64,6 +64,7 @@ export const api = {
   listDevices: () => request<PasskeyDevice[]>('/api/auth/credentials'),
   deleteDevice: (id: string) =>
     request<void>(`/api/auth/credentials/${id}`, { method: 'DELETE' }),
+  getWsTicket: () => request<{ ticket: string }>('/api/auth/ws-ticket'),
 
   // Notas
   listNotes: (archivadas = false, tags: string[] = []) => {

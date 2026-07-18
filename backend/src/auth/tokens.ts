@@ -34,6 +34,35 @@ export function isAuthenticated(req: Request): boolean {
   }
 }
 
+// --- Ticket de corta vida para el WebSocket de Yjs ---
+//
+// En producción el WS conecta DIRECTO a Render (WS_BASE en el frontend), sin pasar por
+// el proxy /api de Netlify que hace que la cookie de sesión sea first-party — así que
+// esa cookie nunca llega al `upgrade` del WebSocket (dominio distinto). En su lugar, el
+// cliente pide este ticket por REST (sí autenticado, vía la cookie normal) y lo manda
+// como query param al abrir el WebSocket.
+//
+// 12h porque `y-websocket` fija la URL de conexión (con el ticket ya dentro) una vez, al
+// crear el provider, y la reutiliza tal cual en cada reintento de reconexión — si el
+// ticket caduca a media sesión, las reconexiones fallan en silencio hasta que se reabre
+// la nota (lo que pide un ticket nuevo). Con 12h eso solo pasa si una pestaña queda
+// abierta y desconectada más de medio día seguido.
+const WS_TICKET_TTL = '12h';
+
+export function mintWsTicket(): string {
+  return jwt.sign({ purpose: 'ws' }, config.sessionSecret, { expiresIn: WS_TICKET_TTL });
+}
+
+export function verifyWsTicket(ticket: string | undefined | null): boolean {
+  if (!ticket) return false;
+  try {
+    const payload = jwt.verify(ticket, config.sessionSecret);
+    return typeof payload === 'object' && payload !== null && (payload as { purpose?: string }).purpose === 'ws';
+  } catch {
+    return false;
+  }
+}
+
 // --- Cookie de challenge (corta duración, durante la ceremonia WebAuthn) ---
 
 export function setChallengeCookie(res: Response, challenge: string): void {

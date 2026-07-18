@@ -6,6 +6,7 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { loadYjsState, persistDoc } from './persistence.js';
+import { verifyWsTicket } from '../auth/tokens.js';
 
 // Relay de sincronización Yjs sobre WebSocket, integrado en el servidor HTTP de Express.
 // Fase 2 · Tarea 3: relay + persistencia (carga yjs_state al abrir la sala; guarda
@@ -227,10 +228,16 @@ export function setupYjsWebSocket(server: Server): void {
   });
 
   server.on('upgrade', (req, socket, head) => {
-    const pathname = new URL(req.url ?? '', 'http://localhost').pathname;
-    if (!pathname.startsWith(YJS_PATH_PREFIX)) return;
+    const url = new URL(req.url ?? '', 'http://localhost');
+    if (!url.pathname.startsWith(YJS_PATH_PREFIX)) return;
 
-    const docName = decodeURIComponent(pathname.slice(YJS_PATH_PREFIX.length));
+    if (!verifyWsTicket(url.searchParams.get('ticket'))) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    const docName = decodeURIComponent(url.pathname.slice(YJS_PATH_PREFIX.length));
     if (!docName) {
       socket.destroy();
       return;

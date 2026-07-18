@@ -14,6 +14,7 @@ import { WikiLink } from './WikiLinkNode';
 import { MuninnLink } from './link';
 import { WS_BASE } from '../config';
 import { isImageFile, uploadImage } from '../attachments';
+import { api } from '../api';
 import type { NoteContent, WsStatus } from '../types';
 
 interface Props {
@@ -50,15 +51,38 @@ export function Editor(props: Props) {
 
   const onStatus = props.onStatus;
   useEffect(() => {
+    let cancelled = false;
+    let provider: WebsocketProvider | null = null;
+    let handleStatus: ((e: { status: WsStatus }) => void) | null = null;
     onStatus?.('connecting');
     const ydoc = new Y.Doc();
-    const provider = new WebsocketProvider(`${WS_BASE}/yjs`, props.noteId, ydoc, { connect: true });
-    const handleStatus = (e: { status: WsStatus }) => onStatus?.(e.status);
-    provider.on('status', handleStatus);
-    setConn({ ydoc, provider });
+
+    // El ticket se pide por REST (autenticado con la cookie de sesión normal) porque el
+    // WS de producción conecta directo a Render, sin pasar por el proxy de Netlify que
+    // hace esa cookie first-party — ver mintWsTicket en el backend.
+    void (async () => {
+      let ticket: string;
+      try {
+        ({ ticket } = await api.getWsTicket());
+      } catch (err) {
+        console.error('No se pudo obtener el ticket de conexión:', err);
+        if (!cancelled) onStatus?.('disconnected');
+        return;
+      }
+      if (cancelled) return;
+      provider = new WebsocketProvider(`${WS_BASE}/yjs`, props.noteId, ydoc, {
+        connect: true,
+        params: { ticket },
+      });
+      handleStatus = (e) => onStatus?.(e.status);
+      provider.on('status', handleStatus);
+      setConn({ ydoc, provider });
+    })();
+
     return () => {
-      provider.off('status', handleStatus);
-      provider.destroy();
+      cancelled = true;
+      if (provider && handleStatus) provider.off('status', handleStatus);
+      provider?.destroy();
       ydoc.destroy();
       setConn(null);
     };

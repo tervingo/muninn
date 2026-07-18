@@ -26,6 +26,7 @@ import {
   readChallenge,
   clearChallengeCookie,
   isAuthenticated,
+  mintWsTicket,
 } from './tokens.js';
 
 const { rpID, rpName, origin } = config.webauthn;
@@ -222,6 +223,15 @@ router.post('/logout', (_req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });
+
+// Ticket de corta vida para autenticar el WebSocket de Yjs (ver mintWsTicket).
+router.get(
+  '/ws-ticket',
+  requireAuth,
+  ah(async (_req, res) => {
+    res.json({ ticket: mintWsTicket() });
+  }),
+);
 
 // --- Alta de dispositivos nuevos ---
 
