@@ -9,6 +9,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
+import { IndexeddbPersistence } from 'y-indexeddb';
 import { useEffect, useRef, useState } from 'react';
 import { WikiLink } from './WikiLinkNode';
 import { MuninnLink } from './link';
@@ -32,7 +33,9 @@ interface Props {
 
 interface Conn {
   ydoc: Y.Doc;
-  provider: WebsocketProvider;
+  idb: IndexeddbPersistence;
+  /** null hasta que se resuelve el ticket y conecta el WS (o si no hay red: T4 no bloquea en eso). */
+  provider: WebsocketProvider | null;
 }
 
 function docTieneContenido(doc: NoteContent | undefined): boolean {
@@ -42,9 +45,9 @@ function docTieneContenido(doc: NoteContent | undefined): boolean {
 }
 
 /**
- * Crea el Y.Doc + provider WebSocket en un efecto (no en useMemo): así, con el doble
- * montaje de StrictMode, la limpieza destruye el provider y el re-montaje crea uno nuevo,
- * en lugar de reutilizar uno ya destruido (que dejaría la conexión muerta).
+ * Crea el Y.Doc + persistencia local (IndexedDB, T4) + provider WebSocket en un efecto (no
+ * en useMemo): así, con el doble montaje de StrictMode, la limpieza destruye todo y el
+ * re-montaje crea instancias nuevas, en lugar de reutilizar unas ya destruidas.
  */
 export function Editor(props: Props) {
   const [conn, setConn] = useState<Conn | null>(null);
@@ -56,33 +59,53 @@ export function Editor(props: Props) {
     let handleStatus: ((e: { status: WsStatus }) => void) | null = null;
     onStatus?.('connecting');
     const ydoc = new Y.Doc();
+    const idb = new IndexeddbPersistence(`muninn-${props.noteId}`, ydoc);
+
+    // En cuanto carga lo que hubiera en IndexedDB (offline-first, T4) montamos ya el editor,
+    // sin esperar a la red: así el contenido guardado localmente no se pierde ni bloquea la
+    // UI si no hay conexión o el ticket tarda/falla. Si el WS ya hubiera conectado primero
+    // (raro, pero posible), no lo pisamos — por eso el updater funcional con `??`.
+    idb.on('synced', () => {
+      if (!cancelled) setConn((prev) => prev ?? { ydoc, idb, provider: null });
+    });
 
     // El ticket se pide por REST (autenticado con la cookie de sesión normal) porque el
     // WS de producción conecta directo a Render, sin pasar por el proxy de Netlify que
     // hace esa cookie first-party — ver mintWsTicket en el backend.
-    void (async () => {
+    const connectWs = async () => {
+      if (cancelled || provider) return;
       let ticket: string;
       try {
         ({ ticket } = await api.getWsTicket());
       } catch (err) {
-        console.error('No se pudo obtener el ticket de conexión:', err);
+        console.error('No se pudo obtener el ticket de conexión (offline: solo copia local):', err);
         if (!cancelled) onStatus?.('disconnected');
         return;
       }
-      if (cancelled) return;
+      if (cancelled || provider) return;
       provider = new WebsocketProvider(`${WS_BASE}/yjs`, props.noteId, ydoc, {
         connect: true,
         params: { ticket },
       });
       handleStatus = (e) => onStatus?.(e.status);
       provider.on('status', handleStatus);
-      setConn({ ydoc, provider });
-    })();
+      setConn({ ydoc, idb, provider });
+    };
+    void connectWs();
+
+    // Si el ticket falló por estar offline, `y-websocket` nunca llega a existir y por tanto
+    // no hay nada reintentando la conexión — sin esto, la nota se quedaría en modo "solo
+    // local" hasta recargar la página aunque vuelva la red (T4 pide que fusione al reconectar
+    // sin ese paso manual).
+    const onOnline = () => void connectWs();
+    window.addEventListener('online', onOnline);
 
     return () => {
       cancelled = true;
+      window.removeEventListener('online', onOnline);
       if (provider && handleStatus) provider.off('status', handleStatus);
       provider?.destroy();
+      idb.destroy();
       ydoc.destroy();
       setConn(null);
     };
@@ -143,7 +166,9 @@ function CollabEditor({
   });
 
   // Siembra la sala desde la proyección JSON sólo si, tras sincronizar, sigue vacía.
-  // (La persistencia autoritativa llega en la Tarea 3, en el servidor.)
+  // (La persistencia autoritativa llega en la Tarea 3, en el servidor.) Dos fuentes posibles
+  // de "ya sincronizado" desde T4: IndexedDB (local, offline-first) y el WS (servidor) — la
+  // que llegue primero decide; `editor.isEmpty` evita sembrar dos veces o pisar contenido real.
   useEffect(() => {
     if (!editor) return;
     const seedIfEmpty = () => {
@@ -151,12 +176,18 @@ function CollabEditor({
         editor.commands.setContent(content, true);
       }
     };
-    const onSync = (isSynced: boolean) => {
+    const onIdbSynced = () => seedIfEmpty();
+    const onWsSync = (isSynced: boolean) => {
       if (isSynced) seedIfEmpty();
     };
-    conn.provider.on('sync', onSync);
-    if (conn.provider.synced) seedIfEmpty();
-    return () => conn.provider.off('sync', onSync);
+    conn.idb.on('synced', onIdbSynced);
+    if (conn.idb.synced) seedIfEmpty();
+    conn.provider?.on('sync', onWsSync);
+    if (conn.provider?.synced) seedIfEmpty();
+    return () => {
+      conn.idb.off('synced', onIdbSynced);
+      conn.provider?.off('sync', onWsSync);
+    };
   }, [editor, conn, content]);
 
   // Sube la imagen y la inserta en la posición actual del cursor al terminar. No se usa
