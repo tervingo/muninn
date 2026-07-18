@@ -30,8 +30,8 @@ router.post(
 
     const embedding = await generarEmbedding(parsed.data.pregunta, 'query');
 
-    const { rows } = await query<{ id: string; titulo: string; contenido: DocNode }>(
-      `SELECT id, titulo, contenido
+    const { rows } = await query<{ id: string; titulo: string; contenido: DocNode; tags: string[] }>(
+      `SELECT id, titulo, contenido, tags
        FROM notas
        WHERE NOT archivada AND embedding IS NOT NULL
        ORDER BY embedding <=> $1::vector
@@ -48,6 +48,7 @@ router.post(
       id: r.id,
       titulo: r.titulo,
       texto: extractStructuredText(r.contenido),
+      tags: r.tags,
     }));
 
     const { respuesta, idsUsados } = await responderPregunta(parsed.data.pregunta, notasContexto);

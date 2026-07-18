@@ -19,6 +19,7 @@ export interface NotaContexto {
   id: string;
   titulo: string;
   texto: string;
+  tags: string[];
 }
 
 function truncar(texto: string, max: number): string {
@@ -28,6 +29,8 @@ function truncar(texto: string, max: number): string {
 const SYSTEM_PROMPT = `Eres el asistente de Muninn, una app de notas personal.
 Respondes preguntas usando ÚNICAMENTE la información de los extractos de notas
 proporcionados a continuación — no uses conocimiento externo ni inventes información.
+Las etiquetas de cada nota son metadatos de categoría (tema, idioma, proyecto…): úsalas
+como contexto para interpretar la nota, pero la respuesta debe basarse en el texto.
 
 Si los extractos no contienen información suficiente para responder, dilo
 explícitamente en vez de inventar una respuesta.
@@ -57,7 +60,10 @@ export async function responderPregunta(
   notas: NotaContexto[],
 ): Promise<{ respuesta: string; idsUsados: string[] }> {
   const contexto = notas
-    .map((n) => `[id: ${n.id}] Título: "${n.titulo}"\n${truncar(n.texto, MAX_EXCERPT_CHARS)}`)
+    .map((n) => {
+      const etiquetas = n.tags.length ? ` — Etiquetas: ${n.tags.map((t) => `#${t}`).join(', ')}` : '';
+      return `[id: ${n.id}] Título: "${n.titulo}"${etiquetas}\n${truncar(n.texto, MAX_EXCERPT_CHARS)}`;
+    })
     .join('\n\n');
 
   const response = await client.messages.create({
