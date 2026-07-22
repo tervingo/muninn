@@ -166,10 +166,13 @@ function CollabEditor({
     onUpdate: ({ editor }) => onChange(editor.getJSON() as NoteContent),
   });
 
-  // Siembra la sala desde la proyección JSON sólo si, tras sincronizar, sigue vacía.
-  // (La persistencia autoritativa llega en la Tarea 3, en el servidor.) Dos fuentes posibles
-  // de "ya sincronizado" desde T4: IndexedDB (local, offline-first) y el WS (servidor) — la
-  // que llegue primero decide; `editor.isEmpty` evita sembrar dos veces o pisar contenido real.
+  // Siembra la sala desde la proyección JSON sólo si, tras sincronizar CON EL SERVIDOR, sigue
+  // vacía. Debe basarse ÚNICAMENTE en el sync del WS (nunca en el de IndexedDB, T4): que
+  // IndexedDB esté vacío solo significa que ESTE navegador no tiene caché local de la nota,
+  // no que la nota esté vacía en el servidor. Sembrar por esa señal crea contenido Yjs nuevo
+  // en local que, al conectar el WS, se fusiona con el ya existente en vez de sustituirlo —
+  // mismo texto duplicado como operaciones Yjs distintas (bug real, visto en producción:
+  // abrir una nota con contenido en un dispositivo/navegador sin caché la duplicaba).
   useEffect(() => {
     if (!editor) return;
     const seedIfEmpty = () => {
@@ -177,16 +180,12 @@ function CollabEditor({
         editor.commands.setContent(content, true);
       }
     };
-    const onIdbSynced = () => seedIfEmpty();
     const onWsSync = (isSynced: boolean) => {
       if (isSynced) seedIfEmpty();
     };
-    conn.idb.on('synced', onIdbSynced);
-    if (conn.idb.synced) seedIfEmpty();
     conn.provider?.on('sync', onWsSync);
     if (conn.provider?.synced) seedIfEmpty();
     return () => {
-      conn.idb.off('synced', onIdbSynced);
       conn.provider?.off('sync', onWsSync);
     };
   }, [editor, conn, content]);
