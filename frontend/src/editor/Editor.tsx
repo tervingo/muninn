@@ -13,8 +13,9 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 import { useEffect, useRef, useState } from 'react';
 import { WikiLink } from './WikiLinkNode';
 import { MuninnLink } from './link';
-import { WS_BASE } from '../config';
+import { WS_BASE, DROPBOX_APP_KEY } from '../config';
 import { isImageFile, uploadImage } from '../attachments';
+import { chooseDropboxFile } from '../dropbox';
 import { api } from '../api';
 import type { NoteContent, WsStatus } from '../types';
 
@@ -206,6 +207,28 @@ function CollabEditor({
     }
   };
 
+  // Abre el selector de Dropbox e inserta un enlace ("preview", igual que "Copiar enlace" en
+  // Dropbox) con el nombre del archivo como texto. `null` = el usuario canceló el selector.
+  const insertDropboxLink = async () => {
+    if (!editor) return;
+    try {
+      const file = await chooseDropboxFile();
+      if (!file) return;
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: 'text',
+          text: `📄 ${file.name}`,
+          marks: [{ type: 'link', attrs: { href: file.link } }],
+        })
+        .insertContent(' ')
+        .run();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al adjuntar el archivo de Dropbox.');
+    }
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest('[data-wikilink]');
     if (el) {
@@ -225,6 +248,19 @@ function CollabEditor({
           onClick={() => fileInputRef.current?.click()}
         >
           🖼️
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          title={
+            DROPBOX_APP_KEY
+              ? 'Adjuntar documento de Dropbox'
+              : 'Configura VITE_DROPBOX_APP_KEY para activar esto'
+          }
+          disabled={!DROPBOX_APP_KEY}
+          onClick={() => void insertDropboxLink()}
+        >
+          📎
         </button>
         {uploading > 0 && <span className="muted">Subiendo imagen…</span>}
         <input
