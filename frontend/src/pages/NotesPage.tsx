@@ -401,7 +401,7 @@ export function NotesPage({ onLogout }: Props) {
                   <div className="tag-filter-head">
                     <span>Etiquetas</span>
                     {activeTags.length > 0 && (
-                      <button className="link" onClick={() => setActiveTags([])}>
+                      <button className="tag-filter-clear" onClick={() => setActiveTags([])}>
                         limpiar
                       </button>
                     )}

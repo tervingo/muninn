@@ -290,6 +290,15 @@ button.link:hover {
   color: var(--muted);
   margin-bottom: 0.5rem;
 }
+.tag-filter-clear {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.55rem;
+  text-transform: none;
+  letter-spacing: normal;
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
 .tag-filter-list {
   display: flex;
   flex-wrap: wrap;
