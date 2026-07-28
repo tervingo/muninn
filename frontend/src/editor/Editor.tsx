@@ -1,4 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
+import type { Editor as TiptapEditor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
@@ -13,6 +14,7 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 import { useEffect, useRef, useState } from 'react';
 import { WikiLink } from './WikiLinkNode';
 import { MuninnLink } from './link';
+import { SearchHighlight, SearchPluginKey } from './SearchHighlight';
 import { WS_BASE, DROPBOX_APP_KEY } from '../config';
 import { isImageFile, uploadImage } from '../attachments';
 import { chooseDropboxFile } from '../dropbox';
@@ -38,6 +40,16 @@ interface Conn {
   idb: IndexeddbPersistence;
   /** null hasta que se resuelve el ticket y conecta el WS (o si no hay red: T4 no bloquea en eso). */
   provider: WebsocketProvider | null;
+}
+
+function scrollMatchIntoView(editor: TiptapEditor, pos: number): void {
+  try {
+    const dom = editor.view.domAtPos(pos).node;
+    const el = dom.nodeType === Node.TEXT_NODE ? dom.parentElement : (dom as HTMLElement);
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  } catch {
+    /* posición fuera de rango tras un cambio del documento entre el cálculo y el scroll */
+  }
 }
 
 function docTieneContenido(doc: NoteContent | undefined): boolean {
@@ -131,7 +143,10 @@ function CollabEditor({
   titlesRef.current = titles;
   const [uploading, setUploading] = useState(0);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -148,6 +163,7 @@ function CollabEditor({
       TableRow,
       TableHeader,
       TableCell,
+      SearchHighlight,
     ],
     editorProps: {
       handlePaste: (_view, event) => {
@@ -230,6 +246,35 @@ function CollabEditor({
     }
   };
 
+  const searchState = editor ? SearchPluginKey.getState(editor.state) : undefined;
+
+  const openSearch = () => {
+    setSearchOpen(true);
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  };
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchTerm('');
+    editor?.commands.clearSearch();
+  };
+
+  const runSearch = (term: string) => {
+    setSearchTerm(term);
+    if (!editor) return;
+    editor.commands.setSearchTerm(term);
+    const s = SearchPluginKey.getState(editor.state);
+    if (s && s.index >= 0) scrollMatchIntoView(editor, s.results[s.index].from);
+  };
+
+  const goToMatch = (direction: 'next' | 'prev') => {
+    if (!editor) return;
+    if (direction === 'next') editor.commands.searchNext();
+    else editor.commands.searchPrev();
+    const s = SearchPluginKey.getState(editor.state);
+    if (s && s.index >= 0) scrollMatchIntoView(editor, s.results[s.index].from);
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     const img = (e.target as HTMLElement).closest('img');
     if (img) {
@@ -269,6 +314,14 @@ function CollabEditor({
         >
           📎
         </button>
+        <button
+          type="button"
+          className="icon-btn"
+          title="Buscar en la nota"
+          onClick={() => (searchOpen ? closeSearch() : openSearch())}
+        >
+          🔍
+        </button>
         {uploading > 0 && <span className="muted">Subiendo imagen…</span>}
         <input
           ref={fileInputRef}
@@ -282,6 +335,54 @@ function CollabEditor({
           }}
         />
       </div>
+      {searchOpen && (
+        <div className="note-search-bar">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Buscar en la nota…"
+            value={searchTerm}
+            onChange={(e) => runSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                goToMatch(e.shiftKey ? 'prev' : 'next');
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeSearch();
+              }
+            }}
+          />
+          <span className="note-search-count">
+            {searchState && searchState.results.length > 0
+              ? `${searchState.index + 1}/${searchState.results.length}`
+              : searchTerm
+                ? '0/0'
+                : ''}
+          </span>
+          <button
+            type="button"
+            className="icon-btn"
+            title="Anterior"
+            disabled={!searchState?.results.length}
+            onClick={() => goToMatch('prev')}
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            title="Siguiente"
+            disabled={!searchState?.results.length}
+            onClick={() => goToMatch('next')}
+          >
+            ▼
+          </button>
+          <button type="button" className="icon-btn" title="Cerrar búsqueda" onClick={closeSearch}>
+            ✕
+          </button>
+        </div>
+      )}
       <div onClick={handleClick}>
         <EditorContent editor={editor} />
       </div>
