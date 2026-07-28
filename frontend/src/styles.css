@@ -594,6 +594,17 @@ button.link:hover {
   max-width: none;
 }
 
+/* --- Lightbox de imágenes en notas --- */
+.image-lightbox-overlay {
+  cursor: zoom-out;
+}
+.image-lightbox-img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
 /* --- Mapa semántico (T6.4) --- */
 .map-modal {
   max-width: 900px;

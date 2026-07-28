@@ -16,6 +16,7 @@ import { MuninnLink } from './link';
 import { WS_BASE, DROPBOX_APP_KEY } from '../config';
 import { isImageFile, uploadImage } from '../attachments';
 import { chooseDropboxFile } from '../dropbox';
+import { ImageLightbox } from '../components/ImageLightbox';
 import { api } from '../api';
 import type { NoteContent, WsStatus } from '../types';
 
@@ -129,6 +130,7 @@ function CollabEditor({
   const titlesRef = useRef(titles);
   titlesRef.current = titles;
   const [uploading, setUploading] = useState(0);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -229,6 +231,12 @@ function CollabEditor({
   };
 
   const handleClick = (e: React.MouseEvent) => {
+    const img = (e.target as HTMLElement).closest('img');
+    if (img) {
+      e.preventDefault();
+      setLightboxSrc(img.getAttribute('src'));
+      return;
+    }
     const el = (e.target as HTMLElement).closest('[data-wikilink]');
     if (el) {
       e.preventDefault();
@@ -277,6 +285,7 @@ function CollabEditor({
       <div onClick={handleClick}>
         <EditorContent editor={editor} />
       </div>
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
     </div>
   );
 }
