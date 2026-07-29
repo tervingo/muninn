@@ -802,3 +802,58 @@ button.secondary {
     display: none;
   }
 }
+
+/* --- Exportar nota a PDF (window.print()) --- */
+/* Oculta todo lo que no sea el título y el contenido de la nota: barra superior, sidebar,
+   acciones (Archivar/Eliminar/PDF), editor de etiquetas, toolbar del editor (imagen/Dropbox/
+   buscar), backlinks y relacionadas. Fuerza fondo blanco/texto negro — el tema oscuro de la
+   app no tiene sentido en un documento impreso. */
+@media print {
+  .topbar,
+  .sidebar,
+  .note-actions,
+  .tag-editor,
+  .editor-toolbar,
+  .note-search-bar,
+  .backlinks,
+  .related-notes {
+    display: none !important;
+  }
+  html,
+  body,
+  #root,
+  .app-shell,
+  .body,
+  .content {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .content {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  body,
+  .title-input,
+  .ProseMirror {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .title-input {
+    border-bottom: none;
+  }
+  .ProseMirror {
+    min-height: 0;
+  }
+  .ProseMirror pre,
+  .ProseMirror code {
+    background: #f0f0f0 !important;
+  }
+  .ProseMirror th {
+    background: #eee !important;
+  }
+  .ProseMirror th,
+  .ProseMirror td {
+    border-color: #999 !important;
+  }
+}

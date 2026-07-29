@@ -239,6 +239,22 @@ export function NotesPage({ onLogout }: Props) {
     await loadNotes();
   };
 
+  // "Imprimir" a PDF con la hoja @media print de styles.css (oculta sidebar/toolbar/backlinks,
+  // deja solo título + contenido) — el navegador genera texto real, no una imagen rasterizada,
+  // sin depender de ninguna librería ni de un backend. document.title se usa como nombre
+  // sugerido del archivo en el diálogo "Guardar como PDF"; se restaura al cerrarlo.
+  const exportPdf = () => {
+    if (!current) return;
+    const previousTitle = document.title;
+    document.title = current.titulo.trim() || 'Nota sin título';
+    const restoreTitle = () => {
+      document.title = previousTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+    window.addEventListener('afterprint', restoreTitle);
+    window.print();
+  };
+
   const logout = async () => {
     await flushTitle();
     await api.logout();
@@ -476,6 +492,7 @@ export function NotesPage({ onLogout }: Props) {
                   placeholder="Título de la nota"
                 />
                 <div className="note-actions">
+                  <button onClick={exportPdf}>PDF</button>
                   <button onClick={toggleArchive}>
                     {current.archivada ? 'Desarchivar' : 'Archivar'}
                   </button>
