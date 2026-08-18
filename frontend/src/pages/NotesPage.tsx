@@ -500,7 +500,11 @@ export function NotesPage({ onLogout }: Props) {
                 </div>
               </div>
 
-              <TagEditor tags={current.tags} onChange={onTagsChange} />
+              <TagEditor
+                tags={current.tags}
+                existingTags={allTags.map((t) => t.tag)}
+                onChange={onTagsChange}
+              />
 
               <Editor
                 key={current.id}
