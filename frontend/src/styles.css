@@ -1,15 +1,20 @@
 :root {
   --bg: #404040;
-  --bg-alt: #181825;
-  --surface: #313244;
-  --text: #cdd6f4;
-  --muted: #9399b2;
-  --accent: #cba6f7;
-  --accent-dim: #b4befe;
-  --danger: #f38ba8;
-  --border: #45475a;
+  --bg-alt: #3a3a3a;
+  --surface: #4a4a4a;
+  --text: #e9e4d8;
+  --muted: #adada6;
+  --accent: #c9762e;
+  --accent-dim: #e0975a;
+  --on-accent: #211a12;
+  --danger: #d9564a;
+  --border: #5a5a5a;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --font-body: 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Source Serif 4', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', monospace;
 
   /* Paleta categórica (orden fijo, validada contra --bg #1e1e2e — skill de dataviz) */
   --cluster-1: #3987e5;
@@ -34,7 +39,7 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -83,6 +88,7 @@ button.link:hover {
   text-align: center;
 }
 .login h1 {
+  font-family: var(--font-display);
   font-size: 3rem;
   margin: 0;
   color: var(--accent);
@@ -95,7 +101,7 @@ button.link:hover {
   font-size: 1.1rem;
   padding: 0.8rem 1.6rem;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   border: none;
 }
 .hint {
@@ -116,30 +122,40 @@ button.link:hover {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: calc(0.6rem + var(--safe-top)) 1rem 0.6rem;
-  background: var(--bg-alt);
-  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+  padding: calc(0.9rem + var(--safe-top)) 1.4rem 0.9rem;
+  background: #f6f5f1;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.14);
 }
 .brand {
+  font-family: var(--font-display);
   font-weight: 700;
-  color: var(--accent);
+  font-size: 1.55rem;
+  color: #2b2a26;
 }
 .brand-logo {
-  height: 40px;
-  width: 40px;
+  height: 52px;
+  width: 52px;
   display: block;
-  margin-left: -0.25rem;
 }
 .save-indicator {
   margin-left: auto;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
-  color: var(--muted);
+  color: #726f66;
   min-width: 5rem;
   text-align: right;
 }
 .icon-btn {
-  padding: 0.4rem 0.7rem;
+  padding: 0.45rem 0.85rem;
+  background: transparent;
+  border-color: rgba(0, 0, 0, 0.18);
+  color: #3a3a3a;
+}
+.icon-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .body {
@@ -217,6 +233,7 @@ button.link:hover {
   white-space: nowrap;
 }
 .badge {
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--muted);
   border: 1px solid var(--border);
@@ -235,9 +252,10 @@ button.link:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   color: var(--accent-dim);
-  background: rgba(180, 190, 254, 0.12);
+  background: rgba(224, 151, 90, 0.14);
   border: 1px solid transparent;
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
@@ -272,6 +290,7 @@ button.link:hover {
   border: none;
   color: var(--text);
   font: inherit;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   width: 100%;
 }
@@ -308,7 +327,7 @@ button.link:hover {
   text-transform: none;
   letter-spacing: normal;
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 .tag-filter-list {
@@ -321,7 +340,7 @@ button.link:hover {
 }
 .tag-chip.filter.active {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 .tag-count {
   opacity: 0.6;
@@ -375,8 +394,9 @@ button.link:hover {
 .title-input {
   flex: 1;
   min-width: 200px;
+  font-family: var(--font-display);
   font-size: 1.8rem;
-  font-weight: 700;
+  font-weight: 600;
   background: none;
   border: none;
   color: var(--text);
@@ -455,6 +475,12 @@ button.link:hover {
 .ProseMirror > * + * {
   margin-top: 0.75rem;
 }
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
 .ProseMirror h1 {
   font-size: 1.8rem;
 }
@@ -471,13 +497,14 @@ button.link:hover {
   color: var(--muted);
 }
 .ProseMirror pre {
-  background: var(--bg-alt);
+  background: var(--surface);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   overflow-x: auto;
 }
 .ProseMirror code {
-  background: var(--bg-alt);
+  font-family: var(--font-mono);
+  background: var(--surface);
   padding: 0.1rem 0.3rem;
   border-radius: 4px;
   font-size: 0.9em;
@@ -500,7 +527,7 @@ button.link:hover {
   text-align: left;
 }
 .ProseMirror th {
-  background: var(--bg-alt);
+  background: var(--surface);
   font-weight: 600;
 }
 .ProseMirror td > *,
@@ -521,7 +548,7 @@ button.link:hover {
 }
 .wikilink {
   color: var(--accent);
-  background: rgba(203, 166, 247, 0.12);
+  background: rgba(201, 118, 46, 0.14);
   border-radius: 4px;
   padding: 0.05rem 0.25rem;
   cursor: pointer;
@@ -537,6 +564,7 @@ button.link:hover {
   padding-top: 1rem;
 }
 .backlinks h3 {
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -555,6 +583,7 @@ button.link:hover {
   padding-top: 1rem;
 }
 .related-notes h3 {
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -588,7 +617,7 @@ button.link:hover {
 }
 .suggestion-item.is-selected {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 .suggestion-new {
   font-size: 0.75rem;
@@ -596,7 +625,7 @@ button.link:hover {
   font-weight: 700;
 }
 .suggestion-item.is-selected .suggestion-new {
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 /* --- Modal de dispositivos --- */
@@ -629,12 +658,13 @@ button.link:hover {
   justify-content: space-between;
 }
 .modal-header h2 {
+  font-family: var(--font-display);
   margin: 0;
   font-size: 1.2rem;
 }
 .modal .primary {
   background: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   border: none;
 }
 .modal-sep {
