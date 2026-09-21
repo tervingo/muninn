@@ -124,18 +124,18 @@ button.link:hover {
   align-items: center;
   gap: 1rem;
   padding: calc(0.9rem + var(--safe-top)) 1.4rem 0.9rem;
-  background: #f6f5f1;
+  background: #c0c0c0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.14);
 }
 .brand {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1.55rem;
+  font-size: 2.4rem;
   color: #2b2a26;
 }
 .brand-logo {
-  height: 52px;
-  width: 52px;
+  height: 100px;
+  width: 100px;
   display: block;
 }
 .save-indicator {
