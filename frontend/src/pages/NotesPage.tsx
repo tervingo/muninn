@@ -323,6 +323,56 @@ export function NotesPage({ onLogout }: Props) {
         <button className="icon-btn" onClick={logout}>Salir</button>
       </header>
 
+      {allTags.length > 0 && !searchQuery.trim() && (
+        <div className="tagbar">
+          <div className="tagbar-row">
+            <span className="tagbar-label">Etiquetas</span>
+            {allTags.map((t) => (
+              <button
+                key={t.tag}
+                className={`tag-chip filter${activeTags.includes(t.tag) ? ' active' : ''}`}
+                onClick={() => toggleTagFilter(t.tag)}
+              >
+                #{t.tag} <span className="tag-count">{t.count}</span>
+              </button>
+            ))}
+            {activeTags.length > 0 && (
+              <button className="tag-filter-clear" onClick={() => setActiveTags([])}>
+                limpiar
+              </button>
+            )}
+          </div>
+          {activeTags.length > 0 && notes.length > 0 && (
+            <div className="tagbar-row tagbar-bulk">
+              <button className="danger bulk-del" onClick={bulkDeleteShown}>
+                Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
+              </button>
+              <div className="bulk-tag-box">
+                <input
+                  type="text"
+                  placeholder="etiqueta"
+                  value={bulkTagInput}
+                  onChange={(e) => setBulkTagInput(e.target.value)}
+                  disabled={bulkTagging}
+                />
+                <button
+                  disabled={!bulkTagInput.trim() || bulkTagging}
+                  onClick={() => bulkTagIds(notes.map((n) => n.id), 'add')}
+                >
+                  + Añadir a {notes.length}
+                </button>
+                <button
+                  disabled={!bulkTagInput.trim() || bulkTagging}
+                  onClick={() => bulkTagIds(notes.map((n) => n.id), 'remove')}
+                >
+                  − Quitar de {notes.length}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {devicesOpen && <DevicesDialog onClose={() => setDevicesOpen(false)} />}
       {mapOpen && (
         <MapView onClose={() => setMapOpen(false)} onSelectNote={(id) => void selectNote(id)} />
@@ -411,73 +461,20 @@ export function NotesPage({ onLogout }: Props) {
               )}
             </>
           ) : (
-            <>
-              {allTags.length > 0 && (
-                <div className="tag-filter">
-                  <div className="tag-filter-head">
-                    <span>Etiquetas</span>
-                    {activeTags.length > 0 && (
-                      <button className="tag-filter-clear" onClick={() => setActiveTags([])}>
-                        limpiar
-                      </button>
-                    )}
-                  </div>
-                  <div className="tag-filter-list">
-                    {allTags.map((t) => (
-                      <button
-                        key={t.tag}
-                        className={`tag-chip filter${activeTags.includes(t.tag) ? ' active' : ''}`}
-                        onClick={() => toggleTagFilter(t.tag)}
-                      >
-                        #{t.tag} <span className="tag-count">{t.count}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {activeTags.length > 0 && notes.length > 0 && (
-                    <>
-                      <button className="danger bulk-del" onClick={bulkDeleteShown}>
-                        Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
-                      </button>
-                      <div className="bulk-tag-box">
-                        <input
-                          type="text"
-                          placeholder="etiqueta"
-                          value={bulkTagInput}
-                          onChange={(e) => setBulkTagInput(e.target.value)}
-                          disabled={bulkTagging}
-                        />
-                        <button
-                          disabled={!bulkTagInput.trim() || bulkTagging}
-                          onClick={() => bulkTagIds(notes.map((n) => n.id), 'add')}
-                        >
-                          + Añadir a {notes.length}
-                        </button>
-                        <button
-                          disabled={!bulkTagInput.trim() || bulkTagging}
-                          onClick={() => bulkTagIds(notes.map((n) => n.id), 'remove')}
-                        >
-                          − Quitar de {notes.length}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-              <ul className="note-list">
-                {notes.map((n) => (
-                  <li key={n.id}>
-                    <button
-                      className={`note-item${n.id === selectedId ? ' active' : ''}`}
-                      onClick={() => selectNote(n.id)}
-                    >
-                      <span className="note-title">{n.titulo || 'Sin título'}</span>
-                      {n.archivada && <span className="badge">archivada</span>}
-                    </button>
-                  </li>
-                ))}
-                {notes.length === 0 && <li className="empty">No hay notas todavía.</li>}
-              </ul>
-            </>
+            <ul className="note-list">
+              {notes.map((n) => (
+                <li key={n.id}>
+                  <button
+                    className={`note-item${n.id === selectedId ? ' active' : ''}`}
+                    onClick={() => selectNote(n.id)}
+                  >
+                    <span className="note-title">{n.titulo || 'Sin título'}</span>
+                    {n.archivada && <span className="badge">archivada</span>}
+                  </button>
+                </li>
+              ))}
+              {notes.length === 0 && <li className="empty">No hay notas todavía.</li>}
+            </ul>
           )}
         </aside>
 

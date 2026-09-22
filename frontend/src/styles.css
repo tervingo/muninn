@@ -124,7 +124,7 @@ button.link:hover {
   align-items: center;
   gap: 1rem;
   padding: calc(0.9rem + var(--safe-top)) 1.4rem 0.9rem;
-  background: #c0c0c0;
+  background: #808080;
   border-bottom: 1px solid rgba(0, 0, 0, 0.14);
 }
 .brand {
@@ -142,7 +142,7 @@ button.link:hover {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  color: #726f66;
+  color: #2b2a26;
   min-width: 5rem;
   text-align: right;
 }
@@ -306,20 +306,29 @@ button.link:hover {
   z-index: 20;
 }
 
-/* Filtro de etiquetas en la barra lateral */
-.tag-filter {
-  padding: 0.75rem;
+/* Barra de etiquetas, a lo ancho, justo bajo la barra superior */
+.tagbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem 1.4rem;
+  background: var(--bg-alt);
   border-bottom: 1px solid var(--border);
 }
-.tag-filter-head {
+.tagbar-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.tagbar-label {
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
-  margin-bottom: 0.5rem;
+  margin-right: 0.2rem;
+  white-space: nowrap;
 }
 .tag-filter-clear {
   font-size: 0.75rem;
@@ -329,11 +338,7 @@ button.link:hover {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
-}
-.tag-filter-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  margin-left: auto;
 }
 .tag-chip.filter {
   cursor: pointer;
@@ -346,9 +351,9 @@ button.link:hover {
   opacity: 0.6;
   font-size: 0.7rem;
 }
-.bulk-del {
-  margin-top: 0.6rem;
-  width: 100%;
+.tagbar-bulk .bulk-del {
+  width: auto;
+  margin-top: 0;
   font-size: 0.85rem;
 }
 .bulk-tag-box {
@@ -357,6 +362,10 @@ button.link:hover {
   gap: 0.4rem;
   padding: 0.75rem;
   border-top: 1px solid var(--border);
+}
+.tagbar-bulk .bulk-tag-box {
+  padding: 0;
+  border-top: none;
 }
 .bulk-tag-box input {
   flex: 1;
@@ -852,6 +861,7 @@ button.secondary {
    app no tiene sentido en un documento impreso. */
 @media print {
   .topbar,
+  .tagbar,
   .sidebar,
   .note-actions,
   .tag-editor,
