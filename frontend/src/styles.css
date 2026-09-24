@@ -148,11 +148,16 @@ button.link:hover {
 }
 .icon-btn {
   padding: 0.45rem 0.85rem;
+}
+/* En la barra superior (fondo claro) los botones necesitan su propio contraste;
+   en cualquier otro sitio (modales, editor…) el `.icon-btn` de base ya vale, con
+   los mismos colores oscuros que el resto de botones de la app. */
+.topbar .icon-btn {
   background: transparent;
   border-color: rgba(0, 0, 0, 0.18);
   color: #3a3a3a;
 }
-.icon-btn:hover:not(:disabled) {
+.topbar .icon-btn:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.05);
   border-color: var(--accent);
   color: var(--accent);
@@ -355,6 +360,35 @@ button.link:hover {
   width: auto;
   margin-top: 0;
   font-size: 0.85rem;
+}
+
+/* Botón que sustituye a la barra de etiquetas en móvil (ver @media más abajo) y
+   abre el mismo filtro en un diálogo modal. */
+.tagbar-toggle {
+  display: none;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 1.4rem;
+  background: var(--bg-alt);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: left;
+}
+.tagbar-toggle:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+/* Lista de chips dentro del diálogo modal de etiquetas (móvil). */
+.tag-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 .bulk-tag-box {
   display: flex;
@@ -848,34 +882,14 @@ button.secondary {
     padding-bottom: calc(2rem + var(--safe-bottom));
   }
 
-  /* La barra de etiquetas no cabe entera en pantallas de móvil: en vez de envolver
-     en varias líneas (que se comía la pantalla con muchas etiquetas), se convierte
-     en una sola fila con scroll horizontal. "Etiquetas" y "limpiar" quedan fijos al
-     principio (siempre alcanzables sin desplazarse) vía `order`; los chips ocupan
-     el resto de la fila. */
-  .tagbar-row {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 0.2rem;
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
-    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
-  }
-  .tagbar-label {
-    order: 0;
-    flex: 0 0 auto;
-  }
-  .tag-filter-clear {
-    order: 1;
-    flex: 0 0 auto;
-    margin-left: 0.4rem;
-  }
-  .tag-chip.filter {
-    order: 2;
-    flex: 0 0 auto;
-  }
-  .tagbar .tag-count {
+  /* La barra de etiquetas completa no cabe en pantallas de móvil (con muchas
+     etiquetas se comía la pantalla). En su lugar se oculta y se muestra un botón
+     compacto (`.tagbar-toggle`) que abre el mismo filtro en un diálogo modal. */
+  .tagbar {
     display: none;
+  }
+  .tagbar-toggle {
+    display: flex;
   }
 }
 @media (min-width: 721px) {

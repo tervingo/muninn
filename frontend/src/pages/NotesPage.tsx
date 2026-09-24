@@ -41,6 +41,7 @@ export function NotesPage({ onLogout }: Props) {
   const [searching, setSearching] = useState(false);
   const [bulkTagInput, setBulkTagInput] = useState('');
   const [bulkTagging, setBulkTagging] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
 
   // El contenido lo persiste el servidor desde Yjs; aquí solo guardamos el título (REST).
   const pendingTitle = useRef<string | null>(null);
@@ -300,6 +301,42 @@ export function NotesPage({ onLogout }: Props) {
 
   const titles = notes.map((n) => n.titulo);
 
+  // Contenido compartido entre la barra de etiquetas (escritorio) y el diálogo de
+  // etiquetas (móvil, ver `tagPickerOpen`) para no duplicar el mapeo ni las acciones.
+  const tagChips = allTags.map((t) => (
+    <button
+      key={t.tag}
+      className={`tag-chip filter${activeTags.includes(t.tag) ? ' active' : ''}`}
+      onClick={() => toggleTagFilter(t.tag)}
+    >
+      #{t.tag} <span className="tag-count">{t.count}</span>
+    </button>
+  ));
+
+  const bulkTagActions = (
+    <div className="bulk-tag-box">
+      <input
+        type="text"
+        placeholder="etiqueta"
+        value={bulkTagInput}
+        onChange={(e) => setBulkTagInput(e.target.value)}
+        disabled={bulkTagging}
+      />
+      <button
+        disabled={!bulkTagInput.trim() || bulkTagging}
+        onClick={() => bulkTagIds(notes.map((n) => n.id), 'add')}
+      >
+        + Añadir a {notes.length}
+      </button>
+      <button
+        disabled={!bulkTagInput.trim() || bulkTagging}
+        onClick={() => bulkTagIds(notes.map((n) => n.id), 'remove')}
+      >
+        − Quitar de {notes.length}
+      </button>
+    </div>
+  );
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -324,52 +361,63 @@ export function NotesPage({ onLogout }: Props) {
       </header>
 
       {allTags.length > 0 && !searchQuery.trim() && (
-        <div className="tagbar">
-          <div className="tagbar-row">
-            <span className="tagbar-label">Etiquetas</span>
-            {allTags.map((t) => (
-              <button
-                key={t.tag}
-                className={`tag-chip filter${activeTags.includes(t.tag) ? ' active' : ''}`}
-                onClick={() => toggleTagFilter(t.tag)}
-              >
-                #{t.tag} <span className="tag-count">{t.count}</span>
-              </button>
-            ))}
-            {activeTags.length > 0 && (
-              <button className="tag-filter-clear" onClick={() => setActiveTags([])}>
-                limpiar
-              </button>
+        <>
+          {/* Escritorio: barra a lo ancho bajo la cabecera (oculta en móvil, ver CSS). */}
+          <div className="tagbar">
+            <div className="tagbar-row">
+              <span className="tagbar-label">Etiquetas</span>
+              {tagChips}
+              {activeTags.length > 0 && (
+                <button className="tag-filter-clear" onClick={() => setActiveTags([])}>
+                  limpiar
+                </button>
+              )}
+            </div>
+            {activeTags.length > 0 && notes.length > 0 && (
+              <div className="tagbar-row tagbar-bulk">
+                <button className="danger bulk-del" onClick={bulkDeleteShown}>
+                  Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
+                </button>
+                {bulkTagActions}
+              </div>
             )}
           </div>
-          {activeTags.length > 0 && notes.length > 0 && (
-            <div className="tagbar-row tagbar-bulk">
-              <button className="danger bulk-del" onClick={bulkDeleteShown}>
-                Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
+
+          {/* Móvil: botón compacto que abre el mismo filtro en un diálogo (oculto en escritorio). */}
+          <button className="tagbar-toggle" onClick={() => setTagPickerOpen(true)}>
+            <span>Etiquetas{activeTags.length > 0 ? ` · ${activeTags.length}` : ''}</span>
+            <span aria-hidden="true">▾</span>
+          </button>
+        </>
+      )}
+
+      {tagPickerOpen && (
+        <div className="modal-overlay" onClick={() => setTagPickerOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Etiquetas</h2>
+              <button className="icon-btn" onClick={() => setTagPickerOpen(false)} aria-label="Cerrar">
+                ✕
               </button>
-              <div className="bulk-tag-box">
-                <input
-                  type="text"
-                  placeholder="etiqueta"
-                  value={bulkTagInput}
-                  onChange={(e) => setBulkTagInput(e.target.value)}
-                  disabled={bulkTagging}
-                />
-                <button
-                  disabled={!bulkTagInput.trim() || bulkTagging}
-                  onClick={() => bulkTagIds(notes.map((n) => n.id), 'add')}
-                >
-                  + Añadir a {notes.length}
-                </button>
-                <button
-                  disabled={!bulkTagInput.trim() || bulkTagging}
-                  onClick={() => bulkTagIds(notes.map((n) => n.id), 'remove')}
-                >
-                  − Quitar de {notes.length}
+            </div>
+            <div className="tag-filter-list">{tagChips}</div>
+            {activeTags.length > 0 && (
+              <div className="tagbar-row">
+                <button className="tag-filter-clear" onClick={() => setActiveTags([])}>
+                  limpiar
                 </button>
               </div>
-            </div>
-          )}
+            )}
+            {activeTags.length > 0 && notes.length > 0 && (
+              <>
+                <hr className="modal-sep" />
+                <button className="danger bulk-del" onClick={bulkDeleteShown}>
+                  Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
+                </button>
+                {bulkTagActions}
+              </>
+            )}
+          </div>
         </div>
       )}
 
