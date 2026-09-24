@@ -847,6 +847,36 @@ button.secondary {
   .content {
     padding-bottom: calc(2rem + var(--safe-bottom));
   }
+
+  /* La barra de etiquetas no cabe entera en pantallas de móvil: en vez de envolver
+     en varias líneas (que se comía la pantalla con muchas etiquetas), se convierte
+     en una sola fila con scroll horizontal. "Etiquetas" y "limpiar" quedan fijos al
+     principio (siempre alcanzables sin desplazarse) vía `order`; los chips ocupan
+     el resto de la fila. */
+  .tagbar-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.2rem;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  }
+  .tagbar-label {
+    order: 0;
+    flex: 0 0 auto;
+  }
+  .tag-filter-clear {
+    order: 1;
+    flex: 0 0 auto;
+    margin-left: 0.4rem;
+  }
+  .tag-chip.filter {
+    order: 2;
+    flex: 0 0 auto;
+  }
+  .tagbar .tag-count {
+    display: none;
+  }
 }
 @media (min-width: 721px) {
   .icon-btn[aria-label='Menú'] {
