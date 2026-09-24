@@ -361,34 +361,25 @@ export function NotesPage({ onLogout }: Props) {
       </header>
 
       {allTags.length > 0 && !searchQuery.trim() && (
-        <>
-          {/* Escritorio: barra a lo ancho bajo la cabecera (oculta en móvil, ver CSS). */}
-          <div className="tagbar">
-            <div className="tagbar-row">
-              <span className="tagbar-label">Etiquetas</span>
-              {tagChips}
-              {activeTags.length > 0 && (
-                <button className="tag-filter-clear" onClick={() => setActiveTags([])}>
-                  limpiar
-                </button>
-              )}
-            </div>
-            {activeTags.length > 0 && notes.length > 0 && (
-              <div className="tagbar-row tagbar-bulk">
-                <button className="danger bulk-del" onClick={bulkDeleteShown}>
-                  Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
-                </button>
-                {bulkTagActions}
-              </div>
+        <div className="tagbar">
+          <div className="tagbar-row">
+            <span className="tagbar-label">Etiquetas</span>
+            {tagChips}
+            {activeTags.length > 0 && (
+              <button className="tag-filter-clear" onClick={() => setActiveTags([])}>
+                limpiar
+              </button>
             )}
           </div>
-
-          {/* Móvil: botón compacto que abre el mismo filtro en un diálogo (oculto en escritorio). */}
-          <button className="tagbar-toggle" onClick={() => setTagPickerOpen(true)}>
-            <span>Etiquetas{activeTags.length > 0 ? ` · ${activeTags.length}` : ''}</span>
-            <span aria-hidden="true">▾</span>
-          </button>
-        </>
+          {activeTags.length > 0 && notes.length > 0 && (
+            <div className="tagbar-row tagbar-bulk">
+              <button className="danger bulk-del" onClick={bulkDeleteShown}>
+                Eliminar {notes.length} resultado{notes.length === 1 ? '' : 's'}
+              </button>
+              {bulkTagActions}
+            </div>
+          )}
+        </div>
       )}
 
       {tagPickerOpen && (
@@ -417,6 +408,11 @@ export function NotesPage({ onLogout }: Props) {
                 {bulkTagActions}
               </>
             )}
+            <button className="primary" onClick={() => setTagPickerOpen(false)}>
+              {activeTags.length > 0
+                ? `Ver ${notes.length} nota${notes.length === 1 ? '' : 's'}`
+                : 'Ver todas las notas'}
+            </button>
           </div>
         </div>
       )}
@@ -464,6 +460,13 @@ export function NotesPage({ onLogout }: Props) {
               }}
             />
           </div>
+
+          {allTags.length > 0 && !searchQuery.trim() && (
+            <button className="tagbar-toggle" onClick={() => setTagPickerOpen(true)}>
+              <span>Etiquetas{activeTags.length > 0 ? ` · ${activeTags.length}` : ''}</span>
+              <span aria-hidden="true">▾</span>
+            </button>
+          )}
 
           {searchQuery.trim() ? (
             <>

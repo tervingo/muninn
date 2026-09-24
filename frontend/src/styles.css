@@ -362,16 +362,16 @@ button.link:hover {
   font-size: 0.85rem;
 }
 
-/* Botón que sustituye a la barra de etiquetas en móvil (ver @media más abajo) y
-   abre el mismo filtro en un diálogo modal. */
+/* Botón dentro de la barra lateral que sustituye a la barra de etiquetas en móvil
+   (ver @media más abajo) y abre el mismo filtro en un diálogo modal. */
 .tagbar-toggle {
   display: none;
   width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.55rem 1.4rem;
-  background: var(--bg-alt);
+  padding: 0.6rem 0.75rem;
+  background: none;
   border: none;
   border-bottom: 1px solid var(--border);
   border-radius: 0;
@@ -870,6 +870,7 @@ button.secondary {
     top: 0;
     bottom: 0;
     left: 0;
+    width: 100%;
     z-index: 20;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
